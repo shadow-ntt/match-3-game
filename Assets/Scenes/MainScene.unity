@@ -318,6 +318,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CheckMatchManager
   board: {fileID: 147233592}
   poolParticle: {fileID: 272776131}
+  explosionDelay: 0.2
 --- !u!114 &147233602
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -333,6 +334,23 @@ MonoBehaviour:
   board: {fileID: 147233592}
   fallDuration: 0.2
   fallEase: 5
+--- !u!114 &147233605
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 147233591}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e8b4c5a6d7e8f9a0b1c2d3e4f5a6b7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpawnItemFromSky
+  board: {fileID: 147233592}
+  fallDuration: 0.2
+  fallEase: 5
+  spawnSpacing: 1
+  allowedColors: 66000000670000006800000069000000
 --- !u!1 &234184001
 GameObject:
   m_ObjectHideFlags: 0
@@ -468,6 +486,7 @@ MonoBehaviour:
   amount: 10
   boardItemPrefabs:
   - {fileID: 2242519841112677613, guid: ef1738a0712ea314ab0a0a0c31a1604a, type: 3}
+  - {fileID: 2242519841112677613, guid: c123ee8700389b247bc7142d7a83520c, type: 3}
   - {fileID: 1050938986864115236, guid: fe98cb9225fdf8049b5e9d6a83017c77, type: 3}
   - {fileID: 1791382942019298321, guid: 95ba632d556e16f4d87bf83d1d9dcd0c, type: 3}
   - {fileID: 6776456740632694050, guid: 062f0d87c35a67a438a9cad69b6a3235, type: 3}
@@ -1797,6 +1816,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3154962468717520029, guid: 9dc49e3de9f0ec545a3d8746bc01573d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 147233602}
+    - targetCorrespondingSourceObject: {fileID: 3154962468717520029, guid: 9dc49e3de9f0ec545a3d8746bc01573d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 147233605}
   m_SourcePrefab: {fileID: 100100000, guid: 9dc49e3de9f0ec545a3d8746bc01573d, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
