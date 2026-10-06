@@ -2,24 +2,27 @@
 
 using UnityEngine;
 
-// Generic Singleton cho MonoBehaviour không bị hủy khi đổi scene (DontDestroyOnLoad)
-public class SingletonDontDestroy<T> : MonoBehaviour where T : MonoBehaviour
+namespace Utils
 {
-    public static T Instance { get; private set; }
-
-    protected virtual void Awake()
+    // Generic Singleton cho MonoBehaviour không bị hủy khi đổi scene (DontDestroyOnLoad)
+    public class SingletonDontDestroy<T> : MonoBehaviour where T : MonoBehaviour
     {
-        if (Instance == null)
-            Instance = this as T;
-        else
-            Destroy(gameObject);
-        DontDestroyOnLoad(gameObject);
-    }
+        public static T Instance { get; private set; }
 
-    protected virtual void OnDestroy()
-    {
-        if (Instance == this)
-            Instance = null;
+        protected virtual void Awake()
+        {
+            if (Instance == null)
+                Instance = this as T;
+            else
+                Destroy(gameObject);
+            DontDestroyOnLoad(gameObject);
+        }
+
+        protected virtual void OnDestroy()
+        {
+            if (Instance == this)
+                Instance = null;
+        }
     }
 }
 

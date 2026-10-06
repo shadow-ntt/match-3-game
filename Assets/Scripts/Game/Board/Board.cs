@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using Utils;
 
 public class Board : MonoBehaviour
 {
@@ -29,7 +31,7 @@ public class Board : MonoBehaviour
 
     // Quản lý các đối tượng đã spawn để tái sử dụng hoặc thu hồi về pool
     private readonly List<GameObject> _spawnedObjects = new List<GameObject>();
-    private GameObject[,] _itemGrid;
+    private GameObject[,] _normalGrid;
     private GameObject[,] _boardCellGrid;
     private GameObject[,] _underGrid;
     private GameObject[,] _overlayGrid;
@@ -41,16 +43,39 @@ public class Board : MonoBehaviour
     public Tilemap NormalTilemap { get => normalTilemap; set => normalTilemap = value; }
     public Tilemap UnderTilemap { get => underTilemap; set => underTilemap = value; }
     public Tilemap OverlayTilemap { get => overlayTilemap; set => overlayTilemap = value; }
-    public GameObject[,] ItemGrid => _itemGrid;
+    public GameObject[,] NormalGrid => _normalGrid;
+    [System.Obsolete("Sử dụng NormalGrid thay cho ItemGrid")]
+    public GameObject[,] ItemGrid => _normalGrid;
     public GameObject[,] BoardCellGrid => _boardCellGrid;
     public GameObject[,] UnderGrid => _underGrid;
     public GameObject[,] OverlayGrid => _overlayGrid;
 
+    // Kich thuoc ban co theo truc X (ngang/cot) va truc Y (doc/hang)
+    public int Width => _normalGrid != null ? _normalGrid.GetLength(0) : 0;
+    public int Height => _normalGrid != null ? _normalGrid.GetLength(1) : 0;
+    public int Cols => Width;
+    public int Rows => Height;
+
+    // Kiem tra toa do (x, y) co nam trong pham vi ban co
+    public bool IsInBounds(int x, int y)
+    {
+        return x >= 0 && x < Width && y >= 0 && y < Height;
+    }
+
+    public bool IsInBounds(Vector2Int pos)
+    {
+        return IsInBounds(pos.x, pos.y);
+    }
+
+    private void Awake()
+    {
+        LoadLevelData(levelNumber);
+    }
     private void Start()
     {
         if (autoLoadOnStart)
         {
-            LoadAndDrawBoard(levelNumber);
+            LoadAndDrawBoard();
         }
     }
 
@@ -97,15 +122,7 @@ public class Board : MonoBehaviour
     [ContextMenu("Tải & Vẽ Bàn Cờ (Load & Draw Board)")]
     public void LoadAndDrawBoard()
     {
-        LoadAndDrawBoard(levelNumber);
-    }
-
-    public void LoadAndDrawBoard(int level)
-    {
-        if (LoadLevelData(level))
-        {
-            DrawBoard();
-        }
+        DrawBoard();
     }
 
     // Vẽ bàn cờ dựa vào _levelData hiện tại và Pooltem
@@ -128,165 +145,107 @@ public class Board : MonoBehaviour
         // Xóa các item đã vẽ trước đó để tránh trùng lặp
         ClearBoard();
 
-        // Xác định kích thước ma trận bàn cờ
-        int rows = 0;
-        int cols = 0;
+        // Xac dinh kich thuoc ban co (chieu rong theo truc X, chieu cao theo truc Y)
+        int width = 0;
+        int height = 0;
 
         if (_levelData.BoardLevel != null && _levelData.BoardLevel.TryGetValue(0, out var boardMatrix) && boardMatrix != null)
         {
-            rows = boardMatrix.GetLength(0);
-            cols = boardMatrix.GetLength(1);
+            height = boardMatrix.GetLength(0);
+            width = boardMatrix.GetLength(1);
         }
         else if (_levelData.NormalLayerItem != null && _levelData.NormalLayerItem.TryGetValue(0, out var normalMatrix) && normalMatrix != null)
         {
-            rows = normalMatrix.GetLength(0);
-            cols = normalMatrix.GetLength(1);
+            height = normalMatrix.GetLength(0);
+            width = normalMatrix.GetLength(1);
         }
 
-        if (rows <= 0 || cols <= 0)
+        if (width <= 0 || height <= 0)
         {
-            Debug.LogWarning("[Board] Dữ liệu ma trận level có kích thước không hợp lệ!");
             return;
         }
 
-        _itemGrid = new GameObject[rows, cols];
-        _boardCellGrid = new GameObject[rows, cols];
-        _underGrid = new GameObject[rows, cols];
-        _overlayGrid = new GameObject[rows, cols];
+        _normalGrid = new GameObject[width, height];
+        _boardCellGrid = new GameObject[width, height];
+        _underGrid = new GameObject[width, height];
+        _overlayGrid = new GameObject[width, height];
 
         // Tu dong can giua Grid quanh goc toa do (0, 0) de ban co nam ngay giua man hinh
         if (grid != null)
         {
-            float originX = -cols * grid.cellSize.x * 0.5f;
-            float originY = -rows * grid.cellSize.y * 0.5f;
+            float originX = -width * grid.cellSize.x * 0.5f;
+            float originY = -height * grid.cellSize.y * 0.5f;
             grid.transform.position = new Vector3(originX, originY, 0);
         }
 
-        // 1. TẦNG BOARD: Chứa -1 (Blank), 0 (Board), 1 (Spawn)
-        Transform boardParent = boardTilemap != null ? boardTilemap.transform : transform;
-        if (_levelData.BoardLevel != null)
+        // 1. TANG BOARD: Chua -1 (Blank), 0 (Board), 1 (Spawn)
+        SpawnLayer(_levelData.BoardLevel, boardTilemap, "BoardCell", _boardCellGrid, width, height, pool, BoardItemUtils.IsValidBoardCell);
+
+        // 2. TANG 2: Layer Under (Lop duoi: Diem sinh ngoc Spawner id = 1 / Spawn, nen dac biet...)
+        SpawnLayer(_levelData.UnderLayerItem, underTilemap, "UnderItem", _underGrid, width, height, pool, BoardItemUtils.IsValidUnderItem);
+
+        // 3. TANG 3: Layer Normal (Cac vien ngoc Match-3: 102: Red, 103: Blue... 108: Pink)
+        SpawnLayer(_levelData.NormalLayerItem, normalTilemap, "NormalItem", _normalGrid, width, height, pool, BoardItemUtils.IsValidNormalItem);
+
+        // 4. TANG 4: Layer Overlay (Lop phu tren ngoc: bang tuyet, day xich, long sat, mang nhen...)
+        SpawnLayer(_levelData.OverLayerItem, overlayTilemap, "OverlayItem", _overlayGrid, width, height, pool, BoardItemUtils.IsValidOverlayItem);
+    }
+
+    // ==========================================
+    // HELPER SPAWN TANG GRID
+    // ==========================================
+
+    private void SpawnLayer(
+        Dictionary<int, int[,]> layerData,
+        Tilemap tilemap,
+        string prefix,
+        GameObject[,] targetGrid,
+        int width,
+        int height,
+        Pooltem pool,
+        Func<int, bool> isValid)
+    {
+        if (layerData == null || pool == null) return;
+
+        Transform parent = tilemap != null ? tilemap.transform : transform;
+
+        foreach (var kvp in layerData)
         {
-            foreach (var kvp in _levelData.BoardLevel)
+            int[,] gridData = kvp.Value;
+            if (gridData == null) continue;
+
+            for (int r = 0; r < height; r++)
             {
-                int[,] gridData = kvp.Value;
-                if (gridData == null) continue;
-
-                for (int r = 0; r < rows; r++)
+                for (int c = 0; c < width; c++)
                 {
-                    for (int c = 0; c < cols; c++)
-                    {
-                        int id = gridData[r, c];
+                    int id = gridData[r, c];
+                    if (isValid != null && !isValid(id)) continue;
 
-                        // Tầng Board chứa -1: Blank, 0: Board, 1: Spawn
-                        if (id == (int)EnumItemBoard.Board || id == (int)EnumItemBoard.Spawn)
+                    // Chuyen doi sang he toa do Grid (x, y): x tu trai sang phai (c), y tu duoi len tren (height - 1 - r)
+                    int x = c;
+                    int y = height - 1 - r;
+
+                    Vector3 worldPos = GridUtils.GridToWorld(grid, x, y);
+                    GameObject obj = pool.SpawnBoardItem(id, worldPos, Quaternion.identity, parent);
+                    if (obj != null)
+                    {
+                        obj.name = $"{prefix}_{id}_{x}_{y}";
+                        _spawnedObjects.Add(obj);
+                        if (targetGrid != null)
                         {
-                            Vector3 worldPos = GridUtils.RowColToWorld(grid, r, c, rows);
-                            GameObject cellObj = pool.SpawnBoardItem(id, worldPos, Quaternion.identity, boardParent);
-                            if (cellObj != null)
-                            {
-                                cellObj.name = $"BoardCell_{id}_{r}_{c}";
-                                _spawnedObjects.Add(cellObj);
-                                _boardCellGrid[r, c] = cellObj;
-                            }
+                            targetGrid[x, y] = obj;
+                        }
+
+                        if (obj.TryGetComponent<BoardCell>(out var cellComp))
+                        {
+                            cellComp.X = x;
+                            cellComp.Y = y;
+                            cellComp.State = EnumStateBoardCell.Occupied;
                         }
                     }
                 }
             }
         }
-
-        // 2. TẦNG 2: Layer Under (Lớp dưới: Điểm sinh ngọc Spawner id = 1 / Spawn, nền đặc biệt...)
-        Transform underParent = underTilemap != null ? underTilemap.transform : transform;
-        if (_levelData.UnderLayerItem != null)
-        {
-            foreach (var kvp in _levelData.UnderLayerItem)
-            {
-                int[,] gridData = kvp.Value;
-                if (gridData == null) continue;
-
-                for (int r = 0; r < rows; r++)
-                {
-                    for (int c = 0; c < cols; c++)
-                    {
-                        int id = gridData[r, c];
-                        if (id != (int)EnumItemBoard.Blank && id > 0)
-                        {
-                            Vector3 worldPos = GridUtils.RowColToWorld(grid, r, c, rows);
-                            GameObject underObj = pool.SpawnBoardItem(id, worldPos, Quaternion.identity, underParent);
-                            if (underObj != null)
-                            {
-                                underObj.name = $"UnderItem_{id}_{r}_{c}";
-                                _spawnedObjects.Add(underObj);
-                                _underGrid[r, c] = underObj;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. TẦNG 3: Layer Normal (Các viên ngọc Match-3: 2: Red, 3: Blue, 4: Green, 5: Yellow, 6: Purple, 7: Orange, 8: Pink)
-        Transform normalParent = normalTilemap != null ? normalTilemap.transform : transform;
-        if (_levelData.NormalLayerItem != null)
-        {
-            foreach (var kvp in _levelData.NormalLayerItem)
-            {
-                int[,] gridData = kvp.Value;
-                if (gridData == null) continue;
-
-                for (int r = 0; r < rows; r++)
-                {
-                    for (int c = 0; c < cols; c++)
-                    {
-                        int id = gridData[r, c];
-
-                        // Chỉ spawn các item ngọc hợp lệ (id >= 102)
-                        if (id != (int)EnumItemBoard.Blank && id >= (int)EnumItemBoard.Red)
-                        {
-                            Vector3 worldPos = GridUtils.RowColToWorld(grid, r, c, rows);
-                            GameObject itemObj = pool.SpawnBoardItem(id, worldPos, Quaternion.identity, normalParent);
-                            if (itemObj != null)
-                            {
-                                itemObj.name = $"NormalItem_{id}_{r}_{c}";
-                                _spawnedObjects.Add(itemObj);
-                                _itemGrid[r, c] = itemObj;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 4. TẦNG 4: Layer Overlay (Lớp phủ trên ngọc: băng tuyết, dây xích, lồng sắt, màng nhện...)
-        Transform overlayParent = overlayTilemap != null ? overlayTilemap.transform : transform;
-        if (_levelData.OverLayerItem != null)
-        {
-            foreach (var kvp in _levelData.OverLayerItem)
-            {
-                int[,] gridData = kvp.Value;
-                if (gridData == null) continue;
-
-                for (int r = 0; r < rows; r++)
-                {
-                    for (int c = 0; c < cols; c++)
-                    {
-                        int id = gridData[r, c];
-                        if (id != (int)EnumItemBoard.Blank && id > 0)
-                        {
-                            Vector3 worldPos = GridUtils.RowColToWorld(grid, r, c, rows);
-                            GameObject overlayObj = pool.SpawnBoardItem(id, worldPos, Quaternion.identity, overlayParent);
-                            if (overlayObj != null)
-                            {
-                                overlayObj.name = $"OverlayItem_{id}_{r}_{c}";
-                                _spawnedObjects.Add(overlayObj);
-                                _overlayGrid[r, c] = overlayObj;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Debug.Log($"[Board] Đã vẽ xong bàn cờ Level {levelNumber} trên 4 tầng Grid: {rows} hàng x {cols} cột ({_spawnedObjects.Count} items).");
     }
 
 
@@ -313,7 +272,7 @@ public class Board : MonoBehaviour
         }
 
         _spawnedObjects.Clear();
-        _itemGrid = null;
+        _normalGrid = null;
         _boardCellGrid = null;
         _underGrid = null;
         _overlayGrid = null;

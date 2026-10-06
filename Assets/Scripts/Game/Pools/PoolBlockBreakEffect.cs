@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Utils;
 
 public class PoolBlockBreakEffect : Singleton<PoolBlockBreakEffect>
 {
@@ -115,17 +116,22 @@ public class PoolBlockBreakEffect : Singleton<PoolBlockBreakEffect>
     // Phat hieu ung theo EnumItemBoard
     public void Play(Transform origin, EnumItemBoard boardItem)
     {
-        if ((int)boardItem >= 1 && (int)boardItem <= 7)
+        if (origin != null)
         {
-            Play(origin, (EnumItemColor)boardItem);
+            Play(origin.position, boardItem);
         }
     }
 
     public void Play(Vector3 position, EnumItemBoard boardItem)
     {
-        if ((int)boardItem >= 1 && (int)boardItem <= 7)
+        int id = (int)boardItem;
+        if (id >= 102 && id <= 108)
         {
-            Play(position, (EnumItemColor)boardItem);
+            Play(position, (EnumItemColor)(id - 101));
+        }
+        else if (id >= 1 && id <= 7)
+        {
+            Play(position, (EnumItemColor)id);
         }
     }
 
@@ -158,4 +164,6 @@ public class PoolBlockBreakEffect : Singleton<PoolBlockBreakEffect>
             queue.Enqueue(ps);
         }
     }
+
+
 }

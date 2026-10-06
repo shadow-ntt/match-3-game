@@ -67,3 +67,7 @@ crashlytics-build.properties
 # OS generated
 .DS_Store
 Thumbs.db
+
+# Project Progress & Notes
+PROGRESS.md
+PROGRESS.md.meta
