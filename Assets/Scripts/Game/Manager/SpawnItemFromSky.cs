@@ -37,7 +37,7 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
     // Quét các ô trống trên bàn cờ và sinh ngọc mới (chỉ rơi thẳng) bất đồng bộ bằng UniTask
     public async UniTask<bool> SpawnFromSkyAsync()
     {
-        if (_isSpawning || board == null || board.NormalGrid == null || board.BoardCellGrid == null)
+        if (_isSpawning || board == null || board.MidGrid == null || board.BoardCellGrid == null)
         {
             return false;
         }
@@ -48,7 +48,7 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
             int width = board.Width;
             var tasks = new List<UniTask>();
 
-            Transform parent = board.NormalTilemap != null ? board.NormalTilemap.transform : board.transform;
+            Transform parent = board.MidTilemap != null ? board.MidTilemap.transform : board.transform;
 
             for (int x = 0; x < width; x++)
             {
@@ -151,10 +151,10 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
         GameObject newObj = Pooltem.Instance.SpawnBoardItem(colorId, path[0], Quaternion.identity, parent);
         if (newObj == null) return;
 
-        newObj.name = $"NormalItem_{colorId}_{targetX}_{targetY}";
+        newObj.name = $"MidItem_{colorId}_{targetX}_{targetY}";
 
         // Cập nhật grid logic ngay lập tức
-        board.NormalGrid[targetX, targetY] = newObj;
+        board.MidGrid[targetX, targetY] = newObj;
         var targetCell = board.GetBoardCell(targetX, targetY);
         if (targetCell != null)
         {

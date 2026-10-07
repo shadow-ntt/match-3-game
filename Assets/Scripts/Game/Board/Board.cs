@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Tilemaps;
 using Utils;
 
@@ -17,8 +18,8 @@ public class Board : MonoBehaviour
     [SerializeField] private Grid grid;
     [Tooltip("Tầng 1: Nền bàn cờ (Chứa -1: Blank, 0: Board, 1: Spawn)")]
     [SerializeField] private Tilemap boardTilemap;
-    [Tooltip("Tầng 2: Ngọc thông thường (Chứa 102: Red, 103: Blue... 108: Pink)")]
-    [SerializeField] private Tilemap normalTilemap;
+    [Tooltip("Tầng 2: Tầng giữa chứa Ngọc & Booster (Mid Layer)")]
+    [SerializeField] private Tilemap midTilemap;
     [Tooltip("Tầng 3: Dưới ngọc (Sẽ bổ sung sau)")]
     [SerializeField] private Tilemap underTilemap;
     [Tooltip("Tầng 4: Phủ trên ngọc (Sẽ bổ sung sau)")]
@@ -31,7 +32,7 @@ public class Board : MonoBehaviour
 
     // Quản lý các đối tượng đã spawn để tái sử dụng hoặc thu hồi về pool
     private readonly List<GameObject> _spawnedObjects = new List<GameObject>();
-    private GameObject[,] _normalGrid;
+    private GameObject[,] _midGrid;
     private GameObject[,] _boardCellGrid;
     private GameObject[,] _underGrid;
     private GameObject[,] _overlayGrid;
@@ -40,19 +41,17 @@ public class Board : MonoBehaviour
     public int LevelNumber { get => levelNumber; set => levelNumber = value; }
     public Grid Grid { get => grid; set => grid = value; }
     public Tilemap BoardTilemap { get => boardTilemap; set => boardTilemap = value; }
-    public Tilemap NormalTilemap { get => normalTilemap; set => normalTilemap = value; }
+    public Tilemap MidTilemap { get => midTilemap; set => midTilemap = value; }
     public Tilemap UnderTilemap { get => underTilemap; set => underTilemap = value; }
     public Tilemap OverlayTilemap { get => overlayTilemap; set => overlayTilemap = value; }
-    public GameObject[,] NormalGrid => _normalGrid;
-    [System.Obsolete("Sử dụng NormalGrid thay cho ItemGrid")]
-    public GameObject[,] ItemGrid => _normalGrid;
+    public GameObject[,] MidGrid => _midGrid;
     public GameObject[,] BoardCellGrid => _boardCellGrid;
     public GameObject[,] UnderGrid => _underGrid;
     public GameObject[,] OverlayGrid => _overlayGrid;
 
     // Kich thuoc ban co theo truc X (ngang/cot) va truc Y (doc/hang)
-    public int Width => _normalGrid != null ? _normalGrid.GetLength(0) : 0;
-    public int Height => _normalGrid != null ? _normalGrid.GetLength(1) : 0;
+    public int Width => _midGrid != null ? _midGrid.GetLength(0) : 0;
+    public int Height => _midGrid != null ? _midGrid.GetLength(1) : 0;
     public int Cols => Width;
     public int Rows => Height;
 
@@ -154,10 +153,10 @@ public class Board : MonoBehaviour
             height = boardMatrix.GetLength(0);
             width = boardMatrix.GetLength(1);
         }
-        else if (_levelData.NormalLayerItem != null && _levelData.NormalLayerItem.TryGetValue(0, out var normalMatrix) && normalMatrix != null)
+        else if (_levelData.MidLayer != null && _levelData.MidLayer.TryGetValue(0, out var midMatrix) && midMatrix != null)
         {
-            height = normalMatrix.GetLength(0);
-            width = normalMatrix.GetLength(1);
+            height = midMatrix.GetLength(0);
+            width = midMatrix.GetLength(1);
         }
 
         if (width <= 0 || height <= 0)
@@ -165,7 +164,7 @@ public class Board : MonoBehaviour
             return;
         }
 
-        _normalGrid = new GameObject[width, height];
+        _midGrid = new GameObject[width, height];
         _boardCellGrid = new GameObject[width, height];
         _underGrid = new GameObject[width, height];
         _overlayGrid = new GameObject[width, height];
@@ -184,20 +183,20 @@ public class Board : MonoBehaviour
         // 2. TANG 2: Layer Under (Lop duoi: Diem sinh ngoc Spawner id = 1 / Spawn, nen dac biet...)
         SpawnLayer(_levelData.UnderLayerItem, underTilemap, "UnderItem", _underGrid, width, height, pool, BoardItemUtils.IsValidUnderItem);
 
-        // 3. TANG 3: Layer Normal (Cac vien ngoc Match-3: 102: Red, 103: Blue... 108: Pink)
-        SpawnLayer(_levelData.NormalLayerItem, normalTilemap, "NormalItem", _normalGrid, width, height, pool, BoardItemUtils.IsValidNormalItem);
+        // 3. TANG 3: Layer Mid (Layer giua: Cac vien ngoc Match-3: 102..108 va Booster: 301..305)
+        SpawnLayer(_levelData.MidLayer, midTilemap, "MidItem", _midGrid, width, height, pool, BoardItemUtils.IsMidLayer);
 
         // 4. TANG 4: Layer Overlay (Lop phu tren ngoc: bang tuyet, day xich, long sat, mang nhen...)
         SpawnLayer(_levelData.OverLayerItem, overlayTilemap, "OverlayItem", _overlayGrid, width, height, pool, BoardItemUtils.IsValidOverlayItem);
 
-        // Dong bo State cua BoardCell theo NormalGrid
+        // Dong bo State cua BoardCell theo MidGrid
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
                 if (_boardCellGrid[x, y] != null && _boardCellGrid[x, y].TryGetComponent<BoardCell>(out var cellComp))
                 {
-                    cellComp.State = (_normalGrid[x, y] != null || _underGrid[x, y] != null) ? EnumStateBoardCell.Occupied : EnumStateBoardCell.Empty;
+                    cellComp.State = (_midGrid[x, y] != null || _underGrid[x, y] != null) ? EnumStateBoardCell.Occupied : EnumStateBoardCell.Empty;
                 }
             }
         }
@@ -284,7 +283,7 @@ public class Board : MonoBehaviour
         }
 
         _spawnedObjects.Clear();
-        _normalGrid = null;
+        _midGrid = null;
         _boardCellGrid = null;
         _underGrid = null;
         _overlayGrid = null;

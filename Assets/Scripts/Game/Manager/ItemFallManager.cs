@@ -28,7 +28,7 @@ public class ItemFallManager : Singleton<ItemFallManager>
     // Thực hiện toàn bộ chu trình rơi (thẳng và chéo) bất đồng bộ bằng UniTask
     public async UniTask<bool> OnItemFallAsync()
     {
-        if (isFalling || board == null || board.NormalGrid == null || board.BoardCellGrid == null)
+        if (isFalling || board == null || board.MidGrid == null || board.BoardCellGrid == null)
         {
             return false;
         }
@@ -66,10 +66,10 @@ public class ItemFallManager : Singleton<ItemFallManager>
         if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return true;
         if (board.UnderGrid != null && board.UnderGrid[x, y] != null) return true;
 
-        GameObject normalObj = board.NormalGrid[x, y];
-        if (normalObj != null && normalObj.TryGetComponent<IBoardItem>(out var item))
+        GameObject midObj = board.MidGrid[x, y];
+        if (midObj != null && midObj.TryGetComponent<IBoardItem>(out var item))
         {
-            if (!BoardItemUtils.IsValidNormalItem(item))
+            if (!BoardItemUtils.IsMidLayer(item))
             {
                 return true;
             }
@@ -203,7 +203,7 @@ public class ItemFallManager : Singleton<ItemFallManager>
         {
             for (int y = 1; y < height; y++)
             {
-                GameObject itemObj = board.NormalGrid[x, y];
+                GameObject itemObj = board.MidGrid[x, y];
                 if (itemObj == null) continue;
                 if (IsObstacle(x, y)) continue;
 
@@ -226,7 +226,7 @@ public class ItemFallManager : Singleton<ItemFallManager>
         {
             for (int y = 1; y < height; y++)
             {
-                GameObject itemObj = board.NormalGrid[x, y];
+                GameObject itemObj = board.MidGrid[x, y];
                 if (itemObj == null) continue;
                 if (IsObstacle(x, y)) continue;
 
@@ -242,12 +242,12 @@ public class ItemFallManager : Singleton<ItemFallManager>
     // Xử lý animation rơi thẳng
     private async UniTask AnimateStraightAsync(int fromX, int fromY, int targetY)
     {
-        GameObject itemObj = board.NormalGrid[fromX, fromY];
+        GameObject itemObj = board.MidGrid[fromX, fromY];
         BoardCell targetCell = GetBoardCell(fromX, targetY);
 
         // Cập nhật logic grid ngay lập tức trước khi chạy tween
-        board.NormalGrid[fromX, targetY] = itemObj;
-        board.NormalGrid[fromX, fromY] = null;
+        board.MidGrid[fromX, targetY] = itemObj;
+        board.MidGrid[fromX, fromY] = null;
 
         BoardCell fromCell = GetBoardCell(fromX, fromY);
         if (fromCell != null) fromCell.SetState(EnumStateBoardCell.Empty);
@@ -279,12 +279,12 @@ public class ItemFallManager : Singleton<ItemFallManager>
     // Xử lý animation rơi chéo (qua waypoint entry và xuống đáy)
     private async UniTask AnimateDiagonalAsync(int fromX, int fromY, int destX, int destY)
     {
-        GameObject itemObj = board.NormalGrid[fromX, fromY];
+        GameObject itemObj = board.MidGrid[fromX, fromY];
         BoardCell targetCell = GetBoardCell(destX, destY);
 
         // Cập nhật logic grid ngay lập tức trước khi chạy tween
-        board.NormalGrid[destX, destY] = itemObj;
-        board.NormalGrid[fromX, fromY] = null;
+        board.MidGrid[destX, destY] = itemObj;
+        board.MidGrid[fromX, fromY] = null;
 
         BoardCell fromCell = GetBoardCell(fromX, fromY);
         if (fromCell != null) fromCell.SetState(EnumStateBoardCell.Empty);

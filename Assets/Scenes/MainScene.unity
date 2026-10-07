@@ -299,6 +299,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HandleInput
   board: {fileID: 147233592}
   checkMatchManager: {fileID: 147233599}
+  boosterActivationManager: {fileID: 0}
   mainCamera: {fileID: 23083059}
   swipeThreshold: 20
   enableInput: 1
@@ -493,6 +494,11 @@ MonoBehaviour:
   - {fileID: 6776456740632694050, guid: 062f0d87c35a67a438a9cad69b6a3235, type: 3}
   - {fileID: 2036406852621029784, guid: 5b7610d6242ca114bb815fa217f6529e, type: 3}
   - {fileID: 1050938986864115236, guid: 3178b790f7a2b7040bd500e6c844ba3e, type: 3}
+  - {fileID: 9088885842128089886, guid: 07d36a0cf305cdd41834cfc0de5f678d, type: 3}
+  - {fileID: 7057840253639512419, guid: bce4787ea3b8d0e4a80b07c79a9778a4, type: 3}
+  - {fileID: 5364090936693712249, guid: bee0e577fc8494e45b6100fe1b6b5d1f, type: 3}
+  - {fileID: 3679215089021503241, guid: 7079987770856aa48a080d2f9b8f8382, type: 3}
+  - {fileID: 311353142741527456, guid: 4b5420b026a499948b20db50f61ef3cb, type: 3}
 --- !u!4 &577207751
 Transform:
   m_ObjectHideFlags: 0
@@ -593,6 +599,53 @@ Tilemap:
   m_CorrespondingSourceObject: {fileID: 3193689916146836290, guid: 9dc49e3de9f0ec545a3d8746bc01573d, type: 3}
   m_PrefabInstance: {fileID: 2086190384}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1353073240
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1353073242}
+  - component: {fileID: 1353073241}
+  m_Layer: 0
+  m_Name: BoosterActivationManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1353073241
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1353073240}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae0eb8073f6695544b4e81d24018c458, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BoosterActivationManager
+  board: {fileID: 147233592}
+  poolParticle: {fileID: 272776131}
+  explosionDelay: 0.25
+--- !u!4 &1353073242
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1353073240}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.02184, y: 0.19249, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1839735485 &2011781063 stripped
 Tilemap:
   m_CorrespondingSourceObject: {fileID: 4982368967500237917, guid: 9dc49e3de9f0ec545a3d8746bc01573d, type: 3}
@@ -1833,3 +1886,4 @@ SceneRoots:
   - {fileID: 234184003}
   - {fileID: 577207751}
   - {fileID: 272776132}
+  - {fileID: 1353073242}

@@ -26,7 +26,7 @@ public class LineScanMatchChecker
     {
         var resultMatches = new List<MatchData>();
 
-        if (_board == null || _board.NormalGrid == null || _board.Width == 0 || _board.Height == 0)
+        if (_board == null || _board.MidGrid == null || _board.Width == 0 || _board.Height == 0)
         {
             return resultMatches;
         }
@@ -230,11 +230,12 @@ public class LineScanMatchChecker
         itemId = -1;
         if (_board == null || !_board.IsInBounds(pos)) return false;
 
-        GameObject cellObj = _board.NormalGrid[pos.x, pos.y];
+        GameObject cellObj = _board.MidGrid[pos.x, pos.y];
         if (cellObj == null) return false;
 
         if (!cellObj.TryGetComponent<IBoardItem>(out var item)) return false;
         if (!BoardItemUtils.IsValidNormalItem(item)) return false;
+        if (BoardItemUtils.IsBoosterItem(item)) return false;
 
         itemId = (int)item.ItemId;
         return true;

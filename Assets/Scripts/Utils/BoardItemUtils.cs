@@ -28,6 +28,12 @@ namespace Utils
                 case EnumItemBoard.Purple:
                 case EnumItemBoard.Orange:
                 case EnumItemBoard.Pink:
+
+                    // case EnumItemBoard.HorizontalRocket:
+                    // case EnumItemBoard.VerticalRocket:
+                    // case EnumItemBoard.TNT:
+                    // case EnumItemBoard.Missile:
+                    // case EnumItemBoard.LightBall:
                     return true;
                 default:
                     return false;
@@ -42,6 +48,38 @@ namespace Utils
         public static bool IsValidNormalItem(IBoardItem item)
         {
             return item != null && IsValidNormalItem(item.ItemId);
+        }
+
+        // Kiem tra item co phai la Booster khong (301-305)
+        public static bool IsBoosterItem(int id)
+        {
+            return id >= (int)EnumItemBoard.HorizontalRocket && id <= (int)EnumItemBoard.LightBall;
+        }
+
+        public static bool IsBoosterItem(EnumItemBoard itemBoard)
+        {
+            return IsBoosterItem((int)itemBoard);
+        }
+
+        public static bool IsBoosterItem(IBoardItem item)
+        {
+            return item != null && IsBoosterItem(item.ItemId);
+        }
+
+        // Kiem tra item co thuoc tang Mid Layer khong (Normal Item: 102..108 hoac Booster: 301..305)
+        public static bool IsMidLayer(int id)
+        {
+            return IsValidNormalItem(id) || IsBoosterItem(id);
+        }
+
+        public static bool IsMidLayer(EnumItemBoard itemBoard)
+        {
+            return IsMidLayer((int)itemBoard);
+        }
+
+        public static bool IsMidLayer(IBoardItem item)
+        {
+            return item != null && IsMidLayer(item.ItemId);
         }
 
         // Kiểm tra item tầng Under hợp lệ
@@ -93,21 +131,25 @@ namespace Utils
             return false;
         }
 
-        // Kiểm tra item có đủ điều kiện hoán đổi (không phải Blank, không phải vật cản và thuộc tầng Normal)
+        // Kiem tra item co du dieu kien hoan doi (khong phai Blank, khong phai vat can va thuoc tang Mid Layer)
         public static bool CanSwap(IBoardItem item)
         {
-            return item != null && !IsBlank(item) && !IsObstacle(item) && IsValidNormalItem(item);
+            return item != null && !IsBlank(item) && !IsObstacle(item) && IsMidLayer(item);
         }
 
-        // Kiểm tra 2 item có đủ điều kiện hoán đổi cho nhau không (đều hợp lệ và khác ItemId)
+        // Kiem tra 2 item co du dieu kien hoan doi cho nhau khong (deu hop le va khac ItemId, hoac deu la Booster)
         public static bool CanSwap(IBoardItem itemA, IBoardItem itemB)
         {
+            if (IsBoosterItem(itemA) && IsBoosterItem(itemB))
+            {
+                return CanSwap(itemA) && CanSwap(itemB);
+            }
             return CanSwap(itemA) && CanSwap(itemB) && itemA.ItemId != itemB.ItemId;
         }
 
         public static bool CanSwap(int id)
         {
-            return !IsBlank(id) && IsValidNormalItem(id);
+            return !IsBlank(id) && IsMidLayer(id);
         }
 
         // ==========================================
@@ -156,8 +198,8 @@ namespace Utils
             // Tầng 3 (Under): Nếu có vật cản tầng dưới (hộp gỗ, đá...) thì không thể lấp vào
             if (board.UnderGrid != null && board.UnderGrid[x, y] != null) return false;
 
-            // Tầng 2 (Normal): Nếu ô đã có ngọc thì không thể lấp vào
-            if (board.NormalGrid != null && board.NormalGrid[x, y] != null) return false;
+            // Tầng 2 (Mid): Nếu ô đã có item thì không thể lấp vào
+            if (board.MidGrid != null && board.MidGrid[x, y] != null) return false;
 
             // Trạng thái ô: Nếu đang được ngọc khác rơi tới hoặc đang spawn lấp vào
             BoardCell cell = board.GetBoardCell(x, y);

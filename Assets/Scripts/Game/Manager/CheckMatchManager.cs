@@ -124,12 +124,20 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         }
     }
 
-    // Nổ tất cả các match trong danh sách
+    // No tat ca cac match trong danh sach
     private void ExplodeMatches(List<MatchData> matches)
     {
         for (int i = 0; i < matches.Count; i++)
         {
-            HandleNormalMatch(matches[i]);
+            var match = matches[i];
+            if (match.MatchType == MatchType.Normal)
+            {
+                HandleNormalMatch(match);
+            }
+            else
+            {
+                HandleSpecialMatch(match);
+            }
         }
     }
 
@@ -139,14 +147,13 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         for (int j = 0; j < match.Matches.Count; j++)
         {
             Vector2Int pos = match.Matches[j];
-            GameObject itemObj = board.NormalGrid[pos.x, pos.y];
+            GameObject itemObj = board.MidGrid[pos.x, pos.y];
             if (itemObj == null) continue;
 
             poolParticle.Play(itemObj.transform.position, (EnumItemBoard)match.matchID);
 
-
             Pooltem.Instance.ReturnBoardItem(itemObj);
-            board.NormalGrid[pos.x, pos.y] = null;
+            board.MidGrid[pos.x, pos.y] = null;
 
             if (board.BoardCellGrid[pos.x, pos.y] != null &&
                 board.BoardCellGrid[pos.x, pos.y].TryGetComponent<BoardCell>(out var cell))
@@ -154,6 +161,70 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 cell.State = EnumStateBoardCell.Empty;
                 cell.IsGettingFilled = false;
             }
+        }
+    }
+
+    // Xu ly Special Match: phat particle no cho cac gem, xoa khoi grid va spawn booster tai centerCell
+    private void HandleSpecialMatch(MatchData match)
+    {
+        Vector2Int center = match.centerCell;
+        EnumItemBoard boosterId = GetBoosterIdForMatch(match.MatchType);
+
+        // Xoa toan bo cac gem trong cum match
+        for (int j = 0; j < match.Matches.Count; j++)
+        {
+            Vector2Int pos = match.Matches[j];
+            GameObject itemObj = board.MidGrid[pos.x, pos.y];
+            if (itemObj == null) continue;
+
+            poolParticle.Play(itemObj.transform.position, (EnumItemBoard)match.matchID);
+
+            Pooltem.Instance.ReturnBoardItem(itemObj);
+            board.MidGrid[pos.x, pos.y] = null;
+
+            if (board.BoardCellGrid[pos.x, pos.y] != null &&
+                board.BoardCellGrid[pos.x, pos.y].TryGetComponent<BoardCell>(out var cell))
+            {
+                cell.State = EnumStateBoardCell.Empty;
+                cell.IsGettingFilled = false;
+            }
+        }
+
+        // Sinh booster tai centerCell neu ID hop le
+        if (boosterId == EnumItemBoard.Blank) return;
+
+        Vector3 worldPos = GridUtils.GridToWorld(board.Grid, center.x, center.y);
+        Transform parent = board.MidTilemap != null ? board.MidTilemap.transform : board.transform;
+        GameObject boosterObj = Pooltem.Instance.SpawnBoardItem((int)boosterId, worldPos, Quaternion.identity, parent);
+        if (boosterObj == null) return;
+
+        board.MidGrid[center.x, center.y] = boosterObj;
+
+        if (board.BoardCellGrid[center.x, center.y] != null &&
+            board.BoardCellGrid[center.x, center.y].TryGetComponent<BoardCell>(out var boosterCell))
+        {
+            boosterCell.State = EnumStateBoardCell.Occupied;
+            boosterCell.IsGettingFilled = false;
+        }
+    }
+
+    // Lay EnumItemBoard tuong ung cho booster theo MatchType
+    private static EnumItemBoard GetBoosterIdForMatch(MatchType matchType)
+    {
+        switch (matchType)
+        {
+            case MatchType.HorizontalRocket:
+                return EnumItemBoard.HorizontalRocket;
+            case MatchType.VerticalRocket:
+                return EnumItemBoard.VerticalRocket;
+            case MatchType.TNT:
+                return EnumItemBoard.TNT;
+            case MatchType.Missile:
+                return EnumItemBoard.Missile;
+            case MatchType.LightBall:
+                return EnumItemBoard.LightBall;
+            default:
+                return EnumItemBoard.Blank;
         }
     }
 }

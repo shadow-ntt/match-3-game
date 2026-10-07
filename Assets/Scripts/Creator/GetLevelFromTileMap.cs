@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using OdinSerializer;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Tilemaps;
 
 // Component gan truc tiep len BoardGrid trong scene de trich xuat LevelData tu Inspector
@@ -10,7 +11,8 @@ public class GetLevelFromTileMap : MonoBehaviour
     // 4 Tilemap con tuong ung 4 layer truyen truc tiep tu Inspector
     [Header("4 Tilemap con (Layers)")]
     [SerializeField] private Tilemap boardTilemap;
-    [SerializeField] private Tilemap normalTilemap;
+    [FormerlySerializedAs("normalTilemap")]
+    [SerializeField] private Tilemap midTilemap;
     [SerializeField] private Tilemap overlayTilemap;
     [SerializeField] private Tilemap underTilemap;
 
@@ -18,7 +20,7 @@ public class GetLevelFromTileMap : MonoBehaviour
     [SerializeField] private int levelNumber = 1;
 
     public Tilemap BoardTilemap { get => boardTilemap; set => boardTilemap = value; }
-    public Tilemap NormalTilemap { get => normalTilemap; set => normalTilemap = value; }
+    public Tilemap MidTilemap { get => midTilemap; set => midTilemap = value; }
     public Tilemap OverlayTilemap { get => overlayTilemap; set => overlayTilemap = value; }
     public Tilemap UnderTilemap { get => underTilemap; set => underTilemap = value; }
     public int LevelNumber { get => levelNumber; set => levelNumber = value; }
@@ -79,7 +81,7 @@ public class GetLevelFromTileMap : MonoBehaviour
 
         return new LevelData(
             new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(boardTilemap, bounds) } },
-            new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(normalTilemap, bounds) } },
+            new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(midTilemap, bounds) } },
             new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(underTilemap, bounds) } },
             new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(overlayTilemap, bounds) } }
         );
@@ -125,17 +127,17 @@ public class GetLevelFromTileMap : MonoBehaviour
         Debug.Log($"=== THÔNG TIN PREVIEW LEVEL {levelNumber} ===");
         Debug.Log($"Kích thước bàn cờ: {rows} hàng x {cols} cột (X: {bounds.xMin}..{bounds.xMax - 1}, Y: {bounds.yMin}..{bounds.yMax - 1})");
 
-        int[,] normal = data.NormalLayerItem[0];
+        int[,] mid = data.MidLayer[0];
         string rowPreview = "";
         for (int r = 0; r < rows; r++)
         {
             rowPreview += $"Hàng {r:D2}: [";
             for (int c = 0; c < cols; c++)
             {
-                rowPreview += $" {normal[r, c],2} ";
+                rowPreview += $" {mid[r, c],2} ";
             }
             rowPreview += "]\n";
         }
-        Debug.Log($"Ma trận NormalLayer:\n{rowPreview}");
+        Debug.Log($"Ma trận MidLayer:\n{rowPreview}");
     }
 }

@@ -149,12 +149,12 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
         int cols = 8;
 
         var board = new System.Collections.Generic.Dictionary<int, int[,]>();
-        var normal = new System.Collections.Generic.Dictionary<int, int[,]>();
+        var mid = new System.Collections.Generic.Dictionary<int, int[,]>();
         var under = new System.Collections.Generic.Dictionary<int, int[,]>();
         var over = new System.Collections.Generic.Dictionary<int, int[,]>();
 
         int[,] boardGrid = new int[rows, cols];
-        int[,] normalGrid = new int[rows, cols];
+        int[,] midGrid = new int[rows, cols];
         int[,] underGrid = new int[rows, cols];
         int[,] overGrid = new int[rows, cols];
 
@@ -163,7 +163,7 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
             for (int c = 0; c < cols; c++)
             {
                 boardGrid[r, c] = (int)EnumItemBoard.Board;
-                normalGrid[r, c] = UnityEngine.Random.Range((int)EnumItemBoard.Red, (int)EnumItemBoard.Pink + 1);
+                midGrid[r, c] = UnityEngine.Random.Range((int)EnumItemBoard.Red, (int)EnumItemBoard.Pink + 1);
                 underGrid[r, c] = (r == 0) ? (int)EnumItemBoard.Spawn : (int)EnumItemBoard.Blank;
                 overGrid[r, c] = (int)EnumItemBoard.Blank;
             }
@@ -171,11 +171,11 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
 
 
         board[0] = boardGrid;
-        normal[0] = normalGrid;
+        mid[0] = midGrid;
         under[0] = underGrid;
         over[0] = overGrid;
 
-        LevelData demoData = new LevelData(board, normal, under, over);
+        LevelData demoData = new LevelData(board, mid, under, over);
         SaveLevel(1, demoData);
     }
 
@@ -186,7 +186,7 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
         if (data != null)
         {
             Debug.Log($"[SaveManager] Test load thành công Level 1!");
-            Debug.Log($"Board Layers: {data.BoardLevel?.Count}, Normal Layers: {data.NormalLayerItem?.Count}");
+            Debug.Log($"Board Layers: {data.BoardLevel?.Count}, Mid Layers: {data.MidLayer?.Count}");
         }
     }
 }

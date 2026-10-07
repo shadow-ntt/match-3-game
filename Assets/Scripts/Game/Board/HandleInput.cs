@@ -9,6 +9,7 @@ public class HandleInput : MonoBehaviour
     [Header("Tham chieu Ban Co & Quan ly Match")]
     [SerializeField] private Board board;
     [SerializeField] private CheckMatchManager checkMatchManager;
+    [SerializeField] private BoosterActivationManager boosterActivationManager;
     [SerializeField] private Camera mainCamera;
 
     [Header("Cau hinh Cu chi Vuot")]
@@ -37,12 +38,13 @@ public class HandleInput : MonoBehaviour
     {
         mainCamera = Camera.main;
         if (checkMatchManager == null) checkMatchManager = FindAnyObjectByType<CheckMatchManager>();
+        if (boosterActivationManager == null) boosterActivationManager = FindAnyObjectByType<BoosterActivationManager>();
     }
 
     private void Update()
     {
         // Khi đang di chuyển hoán đổi (isMovingSwap) thì không cho nhận input chuột
-        if (!enableInput || isMovingSwap || board == null || board.NormalGrid == null) return;
+        if (!enableInput || isMovingSwap || board == null || board.MidGrid == null) return;
 
         // Bắt đầu click/chạm vào viên ngọc
         if (Input.GetMouseButtonDown(0))
@@ -114,14 +116,14 @@ public class HandleInput : MonoBehaviour
 
         if (!board.IsInBounds(targetPos)) return false;
 
-        var targetItem = board.NormalGrid[targetPos.x, targetPos.y]?.GetComponent<IBoardItem>();
+        var targetItem = board.MidGrid[targetPos.x, targetPos.y]?.GetComponent<IBoardItem>();
         return targetItem != null && Swap(sourceItem, targetItem);
     }
 
     // Hoan doi vi tri giua 2 IBoardItem bang DOTween
     public bool Swap(IBoardItem itemA, IBoardItem itemB)
     {
-        if (isMovingSwap || board == null || board.NormalGrid == null) return false;
+        if (isMovingSwap || board == null || board.MidGrid == null) return false;
         if (itemA == null || itemB == null) return false;
 
         if (!BoardItemUtils.CanSwap(itemA, itemB)) return false;
@@ -132,12 +134,12 @@ public class HandleInput : MonoBehaviour
             return false;
         }
 
-        // 1. Hoan doi trong ma tran NormalGrid
-        GameObject objA = board.NormalGrid[xA, yA];
-        GameObject objB = board.NormalGrid[xB, yB];
+        // 1. Hoan doi trong ma tran MidGrid
+        GameObject objA = board.MidGrid[xA, yA];
+        GameObject objB = board.MidGrid[xB, yB];
 
-        board.NormalGrid[xA, yA] = objB;
-        board.NormalGrid[xB, yB] = objA;
+        board.MidGrid[xA, yA] = objB;
+        board.MidGrid[xB, yB] = objA;
 
         // 2. Hoan doi vi tri Transform bang DOTween va kiem tra match bang UniTask
         if (objA != null && objB != null)
@@ -149,46 +151,108 @@ public class HandleInput : MonoBehaviour
         return true;
     }
 
-    // Hoat anh hoan doi va kiem tra match / no lien hoan bang UniTask
+    // Hoat anh hoan doi va kiem tra match / kich hoat booster / no lien hoan bang UniTask
     private async UniTaskVoid AnimateSwapAndCheck(GameObject objA, GameObject objB, int xA, int yA, int xB, int yB)
     {
-        Vector3 posA = objA.transform.position;
-        Vector3 posB = objB.transform.position;
-
-        var tweenA = objA.transform.DOMove(posB, swapDuration).SetEase(swapEase);
-        var tweenB = objB.transform.DOMove(posA, swapDuration).SetEase(swapEase);
-        await UniTask.WhenAll(tweenA.ToUniTask(), tweenB.ToUniTask());
-
-        // Kiem tra Match sau khi hoan doi, neu khong co thi hoan lai 2 vi tri
-        Vector2Int priorityCenter = new Vector2Int(xB, yB);
-        bool matched = await checkMatchManager.CheckMatch(priorityCenter);
-
-        if (!matched)
+        try
         {
-            board.NormalGrid[xA, yA] = objA;
-            board.NormalGrid[xB, yB] = objB;
+            Vector3 posA = objA.transform.position;
+            Vector3 posB = objB.transform.position;
 
-            var backA = objA.transform.DOMove(posA, swapDuration).SetEase(swapEase);
-            var backB = objB.transform.DOMove(posB, swapDuration).SetEase(swapEase);
-            await UniTask.WhenAll(backA.ToUniTask(), backB.ToUniTask());
+            var tweenA = objA.transform.DOMove(posB, swapDuration).SetEase(swapEase);
+            var tweenB = objB.transform.DOMove(posA, swapDuration).SetEase(swapEase);
+            await UniTask.WhenAll(tweenA.ToUniTask(), tweenB.ToUniTask());
+
+            var itemA = objA.GetComponent<IBoardItem>();
+            var itemB = objB.GetComponent<IBoardItem>();
+
+            bool isBoosterA = BoardItemUtils.IsBoosterItem(itemA);
+            bool isBoosterB = BoardItemUtils.IsBoosterItem(itemB);
+            bool activated = false;
+
+            var activationMgr = boosterActivationManager != null ? boosterActivationManager : BoosterActivationManager.Instance;
+
+            // Kich hoat Booster neu co booster tham gia
+            if (isBoosterA && isBoosterB && activationMgr != null)
+            {
+                // Ca hai deu la booster -> Kich hoat hieu ung combo
+                activated = await activationMgr.ActivateBoosterComboAsync(xB, yB, itemA, xA, yA, itemB);
+            }
+            else if (isBoosterA && !isBoosterB && activationMgr != null)
+            {
+                // objA (booster) da di chuyen sang (xB, yB), itemB la target bi swap vao
+                activated = await activationMgr.ActivateBoosterAsync(xB, yB, itemB);
+            }
+            else if (isBoosterB && !isBoosterA && activationMgr != null)
+            {
+                // objB (booster) da di chuyen sang (xA, yA), itemA la target bi swap vao
+                activated = await activationMgr.ActivateBoosterAsync(xA, yA, itemA);
+            }
+
+            if (activated)
+            {
+                // Sau khi booster no, cho cac ngoc con lai roi xuong lap khoang trong
+                if (ItemFallManager.Instance != null)
+                {
+                    await ItemFallManager.Instance.OnItemFallAsync();
+                }
+
+                // Kiem tra cascade xem cac ngoc roi xuong co tao match moi khong
+                bool hasMatch = checkMatchManager != null && await checkMatchManager.CheckMatch();
+                if (!hasMatch)
+                {
+                    // Neu chua tao match, sinh ngoc moi tu tren troi roi xuong de lap day ban co
+                    if (SpawnItemFromSky.Instance != null)
+                    {
+                        await SpawnItemFromSky.Instance.SpawnFromSkyAsync();
+                    }
+                    if (ItemFallManager.Instance != null)
+                    {
+                        await ItemFallManager.Instance.OnItemFallAsync();
+                    }
+                    // Kiem tra match sau khi ngoc moi da roi vao vi tri
+                    if (checkMatchManager != null)
+                    {
+                        await checkMatchManager.CheckMatch();
+                    }
+                }
+            }
+            else
+            {
+                // Kiem tra Match thuong sau khi hoan doi, neu khong co thi hoan lai 2 vi tri
+                Vector2Int priorityCenter = new Vector2Int(xB, yB);
+                bool matched = checkMatchManager != null && await checkMatchManager.CheckMatch(priorityCenter);
+
+                if (!matched)
+                {
+                    board.MidGrid[xA, yA] = objA;
+                    board.MidGrid[xB, yB] = objB;
+
+                    var backA = objA.transform.DOMove(posA, swapDuration).SetEase(swapEase);
+                    var backB = objB.transform.DOMove(posB, swapDuration).SetEase(swapEase);
+                    await UniTask.WhenAll(backA.ToUniTask(), backB.ToUniTask());
+                }
+            }
         }
-
-        isMovingSwap = false;
+        finally
+        {
+            isMovingSwap = false;
+        }
     }
 
-    // Tim toa do (x, y) cua mot IBoardItem trong NormalGrid
+    // Tim toa do (x, y) cua mot IBoardItem trong MidGrid
     public bool TryGetItemCoordinates(IBoardItem item, out int x, out int y)
     {
         x = -1;
         y = -1;
 
-        if (item == null || board == null || board.NormalGrid == null) return false;
+        if (item == null || board == null || board.MidGrid == null) return false;
 
         Component comp = item as Component;
         if (comp == null) return false;
 
         Vector2Int gridPos = GridUtils.WorldToGrid(board.Grid, comp.transform.position);
-        if (board.IsInBounds(gridPos) && board.NormalGrid[gridPos.x, gridPos.y] == comp.gameObject)
+        if (board.IsInBounds(gridPos) && board.MidGrid[gridPos.x, gridPos.y] == comp.gameObject)
         {
             x = gridPos.x;
             y = gridPos.y;
@@ -206,7 +270,7 @@ public class HandleInput : MonoBehaviour
 
         if (board.IsInBounds(gridPos))
         {
-            GameObject obj = board.NormalGrid[gridPos.x, gridPos.y];
+            GameObject obj = board.MidGrid[gridPos.x, gridPos.y];
             if (obj != null)
             {
                 return obj.GetComponent<IBoardItem>();
