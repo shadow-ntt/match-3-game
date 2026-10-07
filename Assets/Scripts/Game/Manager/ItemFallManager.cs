@@ -93,38 +93,10 @@ public class ItemFallManager : Singleton<ItemFallManager>
     }
 
     // Lấy BoardCell tại tọa độ (x, y)
-    private BoardCell GetBoardCell(int x, int y)
-    {
-        if (!board.IsInBounds(x, y)) return null;
-        GameObject cellObj = board.BoardCellGrid[x, y];
-        if (cellObj == null) return null;
-        return cellObj.GetComponent<BoardCell>();
-    }
+    private BoardCell GetBoardCell(int x, int y) => board.GetBoardCell(x, y);
 
     // Kiểm tra ô có đang hợp lệ, trống và chưa bị đặt chỗ bởi item khác
-    private bool IsCellEmptyAndAvailable(int x, int y)
-    {
-        // 1. Kiểm tra tọa độ có nằm trong phạm vi bàn cờ không (tránh IndexOutOfRangeException)
-        if (!board.IsInBounds(x, y)) return false;
-
-        // 2. Tầng 1 (Nền): Ô phải có BoardCell hợp lệ (nếu null là ô trống ngoài bàn cờ hoặc lỗ khuyết của map)
-        if (board.BoardCellGrid[x, y] == null) return false;
-
-        // 3. Tầng 4 (Overlay): Nếu có vật cản che phủ bên trên (băng, xích, khóa...) thì item không thể rơi vào
-        if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return false;
-
-        // 4. Tầng 3 (Under): Nếu có vật cản tầng dưới (hộp gỗ, đá, chướng ngại vật...) thì item không thể rơi vào
-        if (board.UnderGrid != null && board.UnderGrid[x, y] != null) return false;
-
-        // 5. Tầng 2 (Normal): Nếu ô đã có ngọc/item thông thường đang chiếm giữ thì không thể rơi đè lên
-        if (board.NormalGrid[x, y] != null) return false;
-
-        // 6. Trạng thái ô: Nếu ô đang được ngọc khác rơi tới hoặc đang spawn lấp vào (đã bị đặt chỗ trước) thì bỏ qua
-        BoardCell cell = GetBoardCell(x, y);
-        if (cell != null && cell.IsGettingFilled) return false;
-
-        return true;
-    }
+    private bool IsCellEmptyAndAvailable(int x, int y) => board.IsCellAvailableForFill(x, y);
 
     // Trả về Y đích thấp nhất trong cột x, đi từ fromY - 1 xuống đáy (-1 nếu không thể rơi thẳng)
     private int FindStraightTarget(int x, int fromY)
@@ -287,7 +259,7 @@ public class ItemFallManager : Singleton<ItemFallManager>
         }
 
         int distance = fromY - targetY;
-        float duration = fallDuration * Mathf.Sqrt(distance);
+        float duration = BoardItemUtils.CalculateFallDuration(fallDuration, distance);
         Vector3 destPos = GridUtils.GridToWorld(board.Grid, fromX, targetY);
 
         try
@@ -326,7 +298,7 @@ public class ItemFallManager : Singleton<ItemFallManager>
         float dx = Mathf.Abs(destX - fromX);
         float dy = fromY - destY;
         float distance = dx + dy;
-        float duration = Mathf.Max(diagonalDuration, fallDuration * Mathf.Sqrt(distance));
+        float duration = Mathf.Max(diagonalDuration, BoardItemUtils.CalculateFallDuration(fallDuration, distance));
 
         Vector3 entryPos = GridUtils.GridToWorld(board.Grid, destX, fromY - 1);
         Vector3 finalPos = GridUtils.GridToWorld(board.Grid, destX, destY);

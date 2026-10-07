@@ -109,5 +109,59 @@ namespace Utils
         {
             return !IsBlank(id) && IsValidNormalItem(id);
         }
+
+        // ==========================================
+        // TIỆN ÍCH TRUY VẤN VÀ THAO TÁC BOARD CELL
+        // ==========================================
+
+        // Lấy BoardCell tại tọa độ (x, y) một cách an toàn
+        public static BoardCell GetBoardCell(this Board board, int x, int y)
+        {
+            if (board == null || !board.IsInBounds(x, y) || board.BoardCellGrid == null) return null;
+            GameObject cellObj = board.BoardCellGrid[x, y];
+            return cellObj != null ? cellObj.GetComponent<BoardCell>() : null;
+        }
+
+        // Lấy tọa độ Y cao nhất có BoardCell hợp lệ của cột x
+        public static int GetTopY(this Board board, int x)
+        {
+            if (board == null || board.BoardCellGrid == null || !board.IsInBounds(x, 0)) return -1;
+            for (int y = board.Height - 1; y >= 0; y--)
+            {
+                if (board.BoardCellGrid[x, y] != null) return y;
+            }
+            return -1;
+        }
+
+        // Kiểm tra ô (x, y) có hợp lệ, đang trống và sẵn sàng nhận ngọc rơi hoặc sinh từ trên trời không
+        public static bool IsCellAvailableForFill(this Board board, int x, int y)
+        {
+            if (board == null || !board.IsInBounds(x, y)) return false;
+            if (board.BoardCellGrid == null || board.BoardCellGrid[x, y] == null) return false;
+
+            // Nếu là điểm sinh (Spawn) thì không chứa ngọc thường
+            if (board.BoardCellGrid[x, y].TryGetComponent<IBoardItem>(out var boardItem) && boardItem.ItemId == EnumItemBoard.Spawn) return false;
+
+            // Tầng 4 (Overlay): Nếu có vật cản che phủ (băng, xích...) thì không thể lấp vào
+            if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return false;
+
+            // Tầng 3 (Under): Nếu có vật cản tầng dưới (hộp gỗ, đá...) thì không thể lấp vào
+            if (board.UnderGrid != null && board.UnderGrid[x, y] != null) return false;
+
+            // Tầng 2 (Normal): Nếu ô đã có ngọc thì không thể lấp vào
+            if (board.NormalGrid != null && board.NormalGrid[x, y] != null) return false;
+
+            // Trạng thái ô: Nếu đang được ngọc khác rơi tới hoặc đang spawn lấp vào
+            BoardCell cell = board.GetBoardCell(x, y);
+            if (cell != null && cell.IsGettingFilled) return false;
+
+            return true;
+        }
+
+        // Tính thời lượng rơi chuẩn hóa theo khoảng cách ô (grid distance)
+        public static float CalculateFallDuration(float baseDuration, float distanceInCells)
+        {
+            return baseDuration * Mathf.Sqrt(Mathf.Max(1f, distanceInCells));
+        }
     }
 }

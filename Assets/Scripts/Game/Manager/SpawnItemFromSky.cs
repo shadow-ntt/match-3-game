@@ -46,27 +46,27 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
         try
         {
             int width = board.Width;
-            var columnSpawnCount = new Dictionary<int, int>();
             var tasks = new List<UniTask>();
 
             Transform parent = board.NormalTilemap != null ? board.NormalTilemap.transform : board.transform;
 
             for (int x = 0; x < width; x++)
             {
-                List<int> emptyYList = GetEmptyYList(x);
-                for (int i = 0; i < emptyYList.Count; i++)
+                int topY = board.GetTopY(x);
+                if (topY < 0) continue;
+
+                int emptyCount = CountEmptyCellsFromTop(x, topY);
+
+                if (emptyCount == 0) continue;
+
+                // Sinh item từ ô thấp nhất lên đến ô cao nhất:
+                // Ô thấp nhất có spawnOffset = 0 (rơi trước/dẫn đầu), các ô bên trên có offset tăng dần
+                int bottomY = topY - emptyCount + 1;
+                for (int y = bottomY; y <= topY; y++)
                 {
-                    int targetY = emptyYList[i];
-                    int spawnOffset = columnSpawnCount.GetValueOrDefault(x, 0);
-
-                    Vector3[] path = FindStraightSpawnPath(x, targetY, spawnOffset);
-                    if (path == null)
-                    {
-                        continue;
-                    }
-
-                    columnSpawnCount[x] = spawnOffset + 1;
-                    tasks.Add(SpawnAndAnimateAsync(x, targetY, path, parent));
+                    int spawnOffset = y - bottomY;
+                    Vector3[] path = CreateStraightSpawnPath(x, y, topY, spawnOffset);
+                    tasks.Add(SpawnAndAnimateAsync(x, y, path, parent));
                 }
             }
 
@@ -84,53 +84,33 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
         }
     }
 
-    // Tìm điểm spawn thẳng từ đỉnh cột targetX và đích đến
-    private Vector3[] FindStraightSpawnPath(int targetX, int targetY, int spawnOffset)
+    // Tạo đường spawn thẳng từ đỉnh cột targetX và đích đến
+    private Vector3[] CreateStraightSpawnPath(int targetX, int targetY, int topY, int spawnOffset)
     {
-        if (!CanSpawnStraight(targetX, targetY)) return null;
-
-        int topY = GetTopY(targetX);
-        if (topY < 0) return null;
-
         Vector3 spawnOrigin = GridUtils.GridToWorld(board.Grid, targetX, topY + 1);
         Vector3 spawnPos = spawnOrigin + Vector3.up * (spawnSpacing * spawnOffset);
         Vector3 targetPos = GridUtils.GridToWorld(board.Grid, targetX, targetY);
         return new[] { spawnPos, targetPos };
     }
 
-    // Kiểm tra cột targetX có đường thông thẳng từ trên trời xuống targetY không
-    public bool CanSpawnStraight(int x, int targetY)
+    // Quét từ đỉnh cột (topY) đi xuống để tìm số lượng ô trống liên tiếp có thể nhận item rơi từ trời
+    private int CountEmptyCellsFromTop(int x, int topY)
     {
-        int topY = GetTopY(x);
-        if (topY < 0 || topY < targetY) return false;
-
-        for (int y = targetY + 1; y <= topY; y++)
+        int emptyCount = 0;
+        for (int y = topY; y >= 0; y--)
         {
-            if (IsCellBlockedForSpawn(x, y)) return false;
-        }
-
-        return true;
-    }
-
-    // Kiểm tra một ô có chặn đường spawn từ trời không
-    private bool IsCellBlockedForSpawn(int x, int y)
-    {
-        if (!board.IsInBounds(x, y)) return true;
-        if (board.BoardCellGrid[x, y] == null) return true;
-        if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return true;
-        if (board.UnderGrid != null && board.UnderGrid[x, y] != null) return true;
-
-        // Nếu đã có gem trong NormalGrid và không phải đang rơi thì bị chặn
-        if (board.NormalGrid[x, y] != null)
-        {
-            var cell = GetBoardCell(x, y);
-            if (cell == null || !cell.IsGettingFilled)
+            if (board.IsCellAvailableForFill(x, y))
             {
-                return true;
+                emptyCount++;
+            }
+            else
+            {
+                // Gặp vật cản hoặc ô đã có item:
+                // Các ô bên dưới bị chặn và không thể nhận item rơi thẳng từ trên trời
+                break;
             }
         }
-
-        return false;
+        return emptyCount;
     }
 
     // Tính thời lượng rơi dựa trên khoảng cách rơi thẳng
@@ -138,7 +118,7 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
     {
         float totalDist = Vector3.Distance(startPos, endPos);
         float cellSize = board.Grid != null ? board.Grid.cellSize.y : 1f;
-        return fallDuration * Mathf.Sqrt(Mathf.Max(1f, totalDist / cellSize));
+        return BoardItemUtils.CalculateFallDuration(fallDuration, totalDist / cellSize);
     }
 
     // Spawn đối tượng mới và chạy tween rơi thẳng từ path[0] xuống path[1]
@@ -158,7 +138,7 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
 
         // Cập nhật grid logic ngay lập tức
         board.NormalGrid[targetX, targetY] = newObj;
-        var targetCell = GetBoardCell(targetX, targetY);
+        var targetCell = board.GetBoardCell(targetX, targetY);
         if (targetCell != null)
         {
             targetCell.SetState(EnumStateBoardCell.Falling);
@@ -181,55 +161,6 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
         }
     }
 
-    // Kiểm tra ô (x, y) có bị chặn bởi vật cản phía trên không
-    public bool IsBlockedFromSky(int x, int y)
-    {
-        return !CanSpawnStraight(x, y);
-    }
-
-    // Lấy danh sách các tọa độ Y đang trống của cột x
-    public List<int> GetEmptyYList(int x)
-    {
-        var emptyYList = new List<int>();
-        int height = board.Height;
-
-        for (int y = 0; y < height; y++)
-        {
-            var cellObj = board.BoardCellGrid[x, y];
-            if (cellObj == null) continue;
-            if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) continue;
-            if (board.UnderGrid != null && board.UnderGrid[x, y] != null) continue;
-            if (board.BoardCellGrid[x, y].TryGetComponent<IBoardItem>(out var boardItem) && boardItem.ItemId == EnumItemBoard.Spawn) continue;
-            // Ô trên bàn cờ chưa có normal item và chưa bị đặt chỗ bởi item khác
-            if (board.NormalGrid[x, y] == null)
-            {
-                var cell = cellObj.GetComponent<BoardCell>();
-                if (cell == null || !cell.IsGettingFilled)
-                {
-                    emptyYList.Add(y);
-                }
-            }
-        }
-
-        return emptyYList;
-    }
-
     // Lấy tọa độ Y cao nhất có BoardCell hợp lệ của cột x
-    public int GetTopY(int x)
-    {
-        for (int y = board.Height - 1; y >= 0; y--)
-        {
-            if (board.BoardCellGrid[x, y] != null) return y;
-        }
-        return -1;
-    }
-
-    // Lấy BoardCell tại tọa độ (x, y)
-    private BoardCell GetBoardCell(int x, int y)
-    {
-        if (!board.IsInBounds(x, y)) return null;
-        var cellObj = board.BoardCellGrid[x, y];
-        if (cellObj == null) return null;
-        return cellObj.GetComponent<BoardCell>();
-    }
+    public int GetTopY(int x) => board.GetTopY(x);
 }
