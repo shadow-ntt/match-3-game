@@ -44,7 +44,8 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         return _matchChecker.FindAllMatches(priorityCenter).Count > 0;
     }
 
-    // Kiem tra match tren ban co va xu ly chuoi no lien hoan (Cascade / Combo) bang vong lap while
+    // Kiem tra match tren ban co va xu ly chuoi no lien hoan (Cascade / Combo)
+    // Quy tac: Khi ngoc roi xuong thi kiem tra match, het match moi duoc phep sinh ngoc moi tu tren troi
     public async UniTask<bool> CheckMatch(Vector2Int? priorityCenter = null)
     {
         var initialMatches = _matchChecker.FindAllMatches(priorityCenter);
@@ -53,71 +54,83 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         _isProcessing = true;
         Vector2Int? currentCenter = priorityCenter;
 
-        // Vong lap xu ly no lien hoan
-        while (true)
+        try
         {
-            var matches = _matchChecker.FindAllMatches(currentCenter);
-            if (matches.Count == 0) break;
-
-            for (int i = 0; i < matches.Count; i++)
-            {
-                var match = matches[i];
-                switch (match.MatchType)
-                {
-                    case MatchType.Normal:
-                        HandleNormalMatch(match);
-                        break;
-                    case MatchType.HorizontalRocket:
-                        HandleNormalMatch(match);
-                        break;
-                    case MatchType.VerticalRocket:
-                        HandleNormalMatch(match);
-                        break;
-                    case MatchType.TNT:
-                        HandleNormalMatch(match);
-                        break;
-                    case MatchType.Missile:
-                        HandleNormalMatch(match);
-                        break;
-                    case MatchType.LightBall:
-                        HandleNormalMatch(match);
-                        break;
-                }
-            }
-
-            // Cho hieu ung hat no hien thi truoc khi item roi xuong
-            if (explosionDelay > 0f)
-            {
-                await UniTask.Delay(System.TimeSpan.FromSeconds(explosionDelay));
-            }
-
-            // Vong lap dam bao ban co luon duoc lap day hoan toan (ca roi thang, roi cheo va spawn tu troi)
             while (true)
             {
-                bool fell = false;
-                if (ItemFallManager.Instance != null)
+                // PHA 1: NỔ & RƠI LIÊN HOÀN CÁC NGỌC TRÊN BÀN (HẾT SẠCH MATCH MỚI THÔI)
+
+                while (true)
                 {
-                    fell = await ItemFallManager.Instance.OnItemFallAsync();
+                    var matches = _matchChecker.FindAllMatches(currentCenter);
+                    if (matches.Count == 0)
+                    {
+                        // Đã hết sạch match giữa các viên ngọc hiện có trên bàn cờ
+                        break;
+                    }
+
+                    // Nổ tất cả các match
+                    ExplodeMatches(matches);
+
+                    // Chờ hiệu ứng hạt nổ
+                    if (explosionDelay > 0f)
+                    {
+                        await UniTask.Delay(System.TimeSpan.FromSeconds(explosionDelay));
+                    }
+
+                    // Cho các ngọc hiện có rơi xuống lấp khoảng trống
+                    if (ItemFallManager.Instance != null)
+                    {
+                        await ItemFallManager.Instance.OnItemFallAsync();
+                    }
+
+                    // Sau lượt nổ đầu tiên thì các lượt nổ tiếp theo không còn tâm ưu tiên
+                    currentCenter = null;
                 }
 
+                // PHA 2: CHỈ SINH NGỌC MỚI TỪ TRỜI KHI ĐÃ HẾT MATCH TRÊN BÀN CỜ
                 bool spawned = false;
                 if (SpawnItemFromSky.Instance != null)
                 {
                     spawned = await SpawnItemFromSky.Instance.SpawnFromSkyAsync();
                 }
 
-                if (!fell && !spawned)
+                if (!spawned)
                 {
+                    // Bàn cờ đã đầy hoặc không còn ô nào spawn được nữa, và Pha 1 đã xác nhận hết match
+                    break;
+                }
+
+                // Cho ngọc mới rơi ổn định nếu có khoảng trống bổ sung (ví dụ rơi chéo)
+                if (ItemFallManager.Instance != null)
+                {
+                    await ItemFallManager.Instance.OnItemFallAsync();
+                }
+
+                // Sau khi ngọc mới rơi xuống, kiểm tra xem có tạo match mới hay không
+                var matchesAfterSpawn = _matchChecker.FindAllMatches(null);
+                if (matchesAfterSpawn.Count == 0)
+                {
+                    // Ngọc sinh ra không tạo match mới và bàn cờ đã được lấp đầy
                     break;
                 }
             }
 
-            // Sau luot no dau tien thi cac luot no tiep theo khong con tam uu tien
-            currentCenter = null;
+            return true;
         }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
 
-        _isProcessing = false;
-        return true;
+    // Nổ tất cả các match trong danh sách
+    private void ExplodeMatches(List<MatchData> matches)
+    {
+        for (int i = 0; i < matches.Count; i++)
+        {
+            HandleNormalMatch(matches[i]);
+        }
     }
 
     // Xu ly MatchType.Normal: phat particle no, tra item ve pool va xoa khoi grid
@@ -130,6 +143,8 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
             if (itemObj == null) continue;
 
             poolParticle.Play(itemObj.transform.position, (EnumItemBoard)match.matchID);
+
+
             Pooltem.Instance.ReturnBoardItem(itemObj);
             board.NormalGrid[pos.x, pos.y] = null;
 

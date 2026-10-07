@@ -133,6 +133,14 @@ namespace Utils
             return -1;
         }
 
+        // Kiểm tra ô (x, y) có phải là điểm sinh (Spawn) không
+        public static bool IsSpawnerCell(this Board board, int x, int y)
+        {
+            if (board == null || !board.IsInBounds(x, y) || board.BoardCellGrid == null) return false;
+            GameObject cellObj = board.BoardCellGrid[x, y];
+            return cellObj != null && cellObj.TryGetComponent<IBoardItem>(out var item) && item.ItemId == EnumItemBoard.Spawn;
+        }
+
         // Kiểm tra ô (x, y) có hợp lệ, đang trống và sẵn sàng nhận ngọc rơi hoặc sinh từ trên trời không
         public static bool IsCellAvailableForFill(this Board board, int x, int y)
         {
@@ -140,7 +148,7 @@ namespace Utils
             if (board.BoardCellGrid == null || board.BoardCellGrid[x, y] == null) return false;
 
             // Nếu là điểm sinh (Spawn) thì không chứa ngọc thường
-            if (board.BoardCellGrid[x, y].TryGetComponent<IBoardItem>(out var boardItem) && boardItem.ItemId == EnumItemBoard.Spawn) return false;
+            if (board.IsSpawnerCell(x, y)) return false;
 
             // Tầng 4 (Overlay): Nếu có vật cản che phủ (băng, xích...) thì không thể lấp vào
             if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return false;

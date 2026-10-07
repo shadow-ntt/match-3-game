@@ -52,20 +52,24 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
 
             for (int x = 0; x < width; x++)
             {
-                int topY = board.GetTopY(x);
-                if (topY < 0) continue;
+                // Tìm ô Spawner cao nhất trong cột x – đây là điểm item xuất hiện
+                int spawnerY = FindSpawnerY(x);
+                if (spawnerY < 0) continue;
 
-                int emptyCount = CountEmptyCellsFromTop(x, topY);
+                // Ô nhận item đầu tiên nằm ngay dưới Spawner
+                int startY = spawnerY - 1;
+                if (startY < 0) continue;
 
+                int emptyCount = CountEmptyCellsFromTop(x, startY);
                 if (emptyCount == 0) continue;
 
                 // Sinh item từ ô thấp nhất lên đến ô cao nhất:
                 // Ô thấp nhất có spawnOffset = 0 (rơi trước/dẫn đầu), các ô bên trên có offset tăng dần
-                int bottomY = topY - emptyCount + 1;
-                for (int y = bottomY; y <= topY; y++)
+                int bottomY = startY - emptyCount + 1;
+                for (int y = bottomY; y <= startY; y++)
                 {
                     int spawnOffset = y - bottomY;
-                    Vector3[] path = CreateStraightSpawnPath(x, y, topY, spawnOffset);
+                    Vector3[] path = CreateSpawnPathFromSpawner(x, y, spawnerY, spawnOffset);
                     tasks.Add(SpawnAndAnimateAsync(x, y, path, parent));
                 }
             }
@@ -84,20 +88,33 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
         }
     }
 
-    // Tạo đường spawn thẳng từ đỉnh cột targetX và đích đến
-    private Vector3[] CreateStraightSpawnPath(int targetX, int targetY, int topY, int spawnOffset)
+    // Tìm tọa độ Y của ô Spawner cao nhất trong cột x (-1 nếu không có)
+    private int FindSpawnerY(int x)
     {
-        Vector3 spawnOrigin = GridUtils.GridToWorld(board.Grid, targetX, topY + 1);
+        int topY = board.GetTopY(x);
+        if (topY < 0) return -1;
+
+        for (int y = topY; y >= 0; y--)
+        {
+            if (board.IsSpawnerCell(x, y)) return y;
+        }
+        return -1;
+    }
+
+    // Tạo đường spawn từ vị trí ô Spawner xuống ô đích targetY
+    private Vector3[] CreateSpawnPathFromSpawner(int targetX, int targetY, int spawnerY, int spawnOffset)
+    {
+        Vector3 spawnOrigin = GridUtils.GridToWorld(board.Grid, targetX, spawnerY);
         Vector3 spawnPos = spawnOrigin + Vector3.up * (spawnSpacing * spawnOffset);
         Vector3 targetPos = GridUtils.GridToWorld(board.Grid, targetX, targetY);
         return new[] { spawnPos, targetPos };
     }
 
-    // Quét từ đỉnh cột (topY) đi xuống để tìm số lượng ô trống liên tiếp có thể nhận item rơi từ trời
-    private int CountEmptyCellsFromTop(int x, int topY)
+    // Quét từ startY đi xuống để tìm số lượng ô trống liên tiếp có thể nhận item rơi từ trời
+    private int CountEmptyCellsFromTop(int x, int startY)
     {
         int emptyCount = 0;
-        for (int y = topY; y >= 0; y--)
+        for (int y = startY; y >= 0; y--)
         {
             if (board.IsCellAvailableForFill(x, y))
             {
@@ -161,6 +178,6 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
         }
     }
 
-    // Lấy tọa độ Y cao nhất có BoardCell hợp lệ của cột x
-    public int GetTopY(int x) => board.GetTopY(x);
+    // Lấy tọa độ Y của ô Spawner cao nhất của cột x (-1 nếu không có)
+    public int GetSpawnerY(int x) => FindSpawnerY(x);
 }
