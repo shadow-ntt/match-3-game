@@ -67,10 +67,36 @@ namespace Utils
             return item == null || item.ItemId == EnumItemBoard.Blank;
         }
 
-        // Kiểm tra item có đủ điều kiện hoán đổi (không phải Blank và thuộc tầng Normal)
+        // Kiểm tra vật cản (Ground: 200 hoặc vật cản tầng 3 Under)
+        public static bool IsObstacle(int id)
+        {
+            return id == (int)EnumItemBoard.Stone;
+        }
+
+        public static bool IsObstacle(EnumItemBoard itemBoard)
+        {
+            return itemBoard == EnumItemBoard.Stone;
+        }
+
+        public static bool IsObstacle(IBoardItem item)
+        {
+            return item != null && (item.ItemId == EnumItemBoard.Stone || item is UnderLayerItem);
+        }
+
+        public static bool IsObstacle(GameObject obj)
+        {
+            if (obj == null) return false;
+            if (obj.TryGetComponent<IBoardItem>(out var item))
+            {
+                return IsObstacle(item);
+            }
+            return false;
+        }
+
+        // Kiểm tra item có đủ điều kiện hoán đổi (không phải Blank, không phải vật cản và thuộc tầng Normal)
         public static bool CanSwap(IBoardItem item)
         {
-            return item != null && !IsBlank(item) && IsValidNormalItem(item);
+            return item != null && !IsBlank(item) && !IsObstacle(item) && IsValidNormalItem(item);
         }
 
         // Kiểm tra 2 item có đủ điều kiện hoán đổi cho nhau không (đều hợp lệ và khác ItemId)

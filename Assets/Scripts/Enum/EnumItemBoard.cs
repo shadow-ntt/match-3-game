@@ -10,6 +10,7 @@ public enum EnumItemBoard
     Yellow = 105,     // Item Vang
     Purple = 106,     // Item Tim
     Orange = 107,     // Item Cam
-    Pink = 108       // Item Hong
+    Pink = 108,       // Item Hong
+    Stone = 200     // Vat can Ground (Tang 3 - Under)
 }
 

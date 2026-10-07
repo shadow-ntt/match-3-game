@@ -298,7 +298,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HandleInput
   board: {fileID: 147233592}
-  checkMatchManager: {fileID: 0}
+  checkMatchManager: {fileID: 147233599}
   mainCamera: {fileID: 23083059}
   swipeThreshold: 20
   enableInput: 1
@@ -333,6 +333,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemFallManager
   board: {fileID: 147233592}
   fallDuration: 0.2
+  diagonalDuration: 0.25
   fallEase: 5
 --- !u!114 &147233605
 MonoBehaviour:
@@ -491,6 +492,7 @@ MonoBehaviour:
   - {fileID: 1791382942019298321, guid: 95ba632d556e16f4d87bf83d1d9dcd0c, type: 3}
   - {fileID: 6776456740632694050, guid: 062f0d87c35a67a438a9cad69b6a3235, type: 3}
   - {fileID: 2036406852621029784, guid: 5b7610d6242ca114bb815fa217f6529e, type: 3}
+  - {fileID: 1050938986864115236, guid: 3178b790f7a2b7040bd500e6c844ba3e, type: 3}
 --- !u!4 &577207751
 Transform:
   m_ObjectHideFlags: 0

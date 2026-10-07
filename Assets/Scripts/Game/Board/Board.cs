@@ -189,6 +189,18 @@ public class Board : MonoBehaviour
 
         // 4. TANG 4: Layer Overlay (Lop phu tren ngoc: bang tuyet, day xich, long sat, mang nhen...)
         SpawnLayer(_levelData.OverLayerItem, overlayTilemap, "OverlayItem", _overlayGrid, width, height, pool, BoardItemUtils.IsValidOverlayItem);
+
+        // Dong bo State cua BoardCell theo NormalGrid
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (_boardCellGrid[x, y] != null && _boardCellGrid[x, y].TryGetComponent<BoardCell>(out var cellComp))
+                {
+                    cellComp.State = (_normalGrid[x, y] != null || _underGrid[x, y] != null) ? EnumStateBoardCell.Occupied : EnumStateBoardCell.Empty;
+                }
+            }
+        }
     }
 
     // ==========================================

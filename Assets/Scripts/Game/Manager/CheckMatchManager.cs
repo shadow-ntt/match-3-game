@@ -91,16 +91,25 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 await UniTask.Delay(System.TimeSpan.FromSeconds(explosionDelay));
             }
 
-            // Kich hoat va cho tat ca item tren cao roi xuong lap day o trong
-            if (ItemFallManager.Instance != null)
+            // Vong lap dam bao ban co luon duoc lap day hoan toan (ca roi thang, roi cheo va spawn tu troi)
+            while (true)
             {
-                await ItemFallManager.Instance.OnItemFallAsync();
-            }
+                bool fell = false;
+                if (ItemFallManager.Instance != null)
+                {
+                    fell = await ItemFallManager.Instance.OnItemFallAsync();
+                }
 
-            // Sinh ngoc moi tu tren troi roi xuong lap day cac o con thieu
-            if (SpawnItemFromSky.Instance != null)
-            {
-                await SpawnItemFromSky.Instance.SpawnFromSkyAsync();
+                bool spawned = false;
+                if (SpawnItemFromSky.Instance != null)
+                {
+                    spawned = await SpawnItemFromSky.Instance.SpawnFromSkyAsync();
+                }
+
+                if (!fell && !spawned)
+                {
+                    break;
+                }
             }
 
             // Sau luot no dau tien thi cac luot no tiep theo khong con tam uu tien
@@ -128,6 +137,7 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 board.BoardCellGrid[pos.x, pos.y].TryGetComponent<BoardCell>(out var cell))
             {
                 cell.State = EnumStateBoardCell.Empty;
+                cell.IsGettingFilled = false;
             }
         }
     }

@@ -7,6 +7,7 @@ public class BoardCell : MonoBehaviour, IBoardItem
 
     private int x;
     private int y;
+    private bool _isGettingFilled;
 
     public EnumItemBoard ItemId
     {
@@ -18,6 +19,18 @@ public class BoardCell : MonoBehaviour, IBoardItem
     {
         get => state;
         set => state = value;
+    }
+
+    public void SetState(EnumStateBoardCell newState)
+    {
+        state = newState;
+    }
+
+    // Danh dau o da duoc dat cho boi item dang roi den de tranh ngoc khac chiem
+    public bool IsGettingFilled
+    {
+        get => _isGettingFilled;
+        set => _isGettingFilled = value;
     }
 
     // Kiem tra o co dang trong khong co item hay khong
@@ -52,10 +65,12 @@ public class BoardCell : MonoBehaviour, IBoardItem
     public virtual void OnSpawn()
     {
         state = EnumStateBoardCell.Occupied;
+        _isGettingFilled = false;
     }
 
     public virtual void OnDespawn()
     {
         state = EnumStateBoardCell.Empty;
+        _isGettingFilled = false;
     }
 }
