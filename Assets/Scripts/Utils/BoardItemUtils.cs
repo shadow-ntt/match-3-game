@@ -28,12 +28,6 @@ namespace Utils
                 case EnumItemBoard.Purple:
                 case EnumItemBoard.Orange:
                 case EnumItemBoard.Pink:
-
-                    // case EnumItemBoard.HorizontalRocket:
-                    // case EnumItemBoard.VerticalRocket:
-                    // case EnumItemBoard.TNT:
-                    // case EnumItemBoard.Missile:
-                    // case EnumItemBoard.LightBall:
                     return true;
                 default:
                     return false;

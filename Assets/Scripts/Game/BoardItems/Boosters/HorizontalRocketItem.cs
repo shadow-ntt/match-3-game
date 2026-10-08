@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using UnityEngine;
 
 // Booster ten lua ngang: no toan bo hang ngang Y cua o booster
@@ -8,7 +10,6 @@ public class HorizontalRocketItem : BoosterItem
     {
         var cells = new List<Vector2Int>();
         if (board == null || board.MidGrid == null) Debug.LogWarning("board == null || board.MidGrid == null");
-        Debug.Log("board.Width:" + board.Width);
         for (int col = 0; col < board.Width; col++)
         {
             if (col == x) continue;
@@ -20,4 +21,11 @@ public class HorizontalRocketItem : BoosterItem
 
         return cells;
     }
+
+    // Phat animation nhap nhay sang (flash scale) truoc khi phong dan
+    public override async UniTask PlayActivationAnimationAsync()
+    {
+        await transform.DOScale(1.3f, 0.08f).SetLoops(2, LoopType.Yoyo).ToUniTask();
+    }
 }
+

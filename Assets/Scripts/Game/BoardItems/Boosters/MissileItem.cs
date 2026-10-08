@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using UnityEngine;
 using Utils;
 
@@ -23,6 +25,13 @@ public class MissileItem : BoosterItem
 
         return cells;
     }
+
+    // Phat animation nhap nhay chuan bi phong dan
+    public override async UniTask PlayActivationAnimationAsync()
+    {
+        await transform.DOScale(1.25f, 0.1f).SetLoops(2, LoopType.Yoyo).ToUniTask();
+    }
+
 
     // Tim vat can tren cac tang Overlay, Under hoac item khong phai MidLayer tren MidGrid
     private Vector2Int? FindSpecialTarget(Board board, int originX, int originY)
