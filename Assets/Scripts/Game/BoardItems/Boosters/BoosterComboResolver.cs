@@ -33,28 +33,11 @@ public static class BoosterComboResolver
                 return;
             }
 
-            // LightBall + Booster khac: Xoa tat ca gem cua 1 mau ngau nhien + kich hoat hieu ung booster do
-            EnumItemBoard randomColor = PickRandomNormalColor(board);
-            if (randomColor != EnumItemBoard.Blank)
+            // LightBall + Booster khac: Chon mau gem co so luong nhieu nhat tren ban co, doi thanh booter dang ket hop
+            EnumItemBoard dominantColor = PickDominantColor(board);
+            if (dominantColor != EnumItemBoard.Blank)
             {
-                AddAllGemsOfColor(board, randomColor, result);
-            }
-
-            if (a == EnumItemBoard.HorizontalRocket)
-            {
-                AddRow(board, cy, result);
-            }
-            else if (a == EnumItemBoard.VerticalRocket)
-            {
-                AddColumn(board, cx, result);
-            }
-            else if (a == EnumItemBoard.TNT)
-            {
-                AddArea(board, cx - 1, cx + 1, cy - 1, cy + 1, result);
-            }
-            else if (a == EnumItemBoard.Missile)
-            {
-                AddSpecialTargets(board, 3, result);
+                AddAllGemsOfColor(board, dominantColor, result);
             }
             return;
         }
@@ -204,7 +187,7 @@ public static class BoosterComboResolver
         {
             for (int row = 0; row < board.Height; row++)
             {
-                if (board.MidGrid[col, row] != null)
+                if (board.MidGrid[col, row] != null || (board.OverlayGrid != null && board.OverlayGrid[col, row] != null))
                 {
                     result.Add(new Vector2Int(col, row));
                 }
@@ -227,6 +210,52 @@ public static class BoosterComboResolver
                 }
             }
         }
+    }
+
+    // Chon mau gem thuong co so luong nhieu nhat tren ban co (hoa nhau thi chon random giua cac mau cao nhat)
+    public static EnumItemBoard PickDominantColor(Board board)
+    {
+        if (board == null || board.MidGrid == null) return EnumItemBoard.Blank;
+
+        var colorCounts = new Dictionary<EnumItemBoard, int>();
+        for (int col = 0; col < board.Width; col++)
+        {
+            for (int row = 0; row < board.Height; row++)
+            {
+                var obj = board.MidGrid[col, row];
+                if (obj == null) continue;
+                if (obj.TryGetComponent<IBoardItem>(out var item) && BoardItemUtils.IsValidNormalItem(item))
+                {
+                    if (colorCounts.TryGetValue(item.ItemId, out int count))
+                    {
+                        colorCounts[item.ItemId] = count + 1;
+                    }
+                    else
+                    {
+                        colorCounts[item.ItemId] = 1;
+                    }
+                }
+            }
+        }
+
+        int maxCount = 0;
+        var topColors = new List<EnumItemBoard>();
+        foreach (var kvp in colorCounts)
+        {
+            if (kvp.Value > maxCount)
+            {
+                maxCount = kvp.Value;
+                topColors.Clear();
+                topColors.Add(kvp.Key);
+            }
+            else if (kvp.Value == maxCount)
+            {
+                topColors.Add(kvp.Key);
+            }
+        }
+
+        if (topColors.Count == 0) return EnumItemBoard.Blank;
+        return topColors[Random.Range(0, topColors.Count)];
     }
 
     // Chon ngau nhien mot mau gem thuong dang ton tai tren ban co
@@ -284,8 +313,21 @@ public static class BoosterComboResolver
                 if (exclude != null && exclude.Contains(pos)) continue;
                 if (outList.Contains(pos)) continue;
 
-                if ((board.OverlayGrid != null && board.OverlayGrid[col, row] != null) ||
-                    (board.UnderGrid != null && board.UnderGrid[col, row] != null))
+                bool isObstacle = false;
+                if (board.OverlayGrid != null && board.OverlayGrid[col, row] != null)
+                {
+                    isObstacle = true;
+                }
+                else if (board.UnderGrid != null && board.UnderGrid[col, row] != null)
+                {
+                    var underObj = board.UnderGrid[col, row];
+                    if (underObj != null && (!underObj.TryGetComponent<IBoardItem>(out var underItem) || underItem.ItemId != EnumItemBoard.Spawn))
+                    {
+                        isObstacle = true;
+                    }
+                }
+
+                if (isObstacle)
                 {
                     outList.Add(pos);
                     if (outList.Count >= count) return;

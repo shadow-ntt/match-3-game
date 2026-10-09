@@ -26,7 +26,7 @@ public class TNTItem : BoosterItem
                 if (dx == 0 && dy == 0) continue;
                 int nx = x + dx;
                 int ny = y + dy;
-                if (board.IsInBounds(nx, ny) && board.MidGrid[nx, ny] != null)
+                if (board.IsInBounds(nx, ny) && (board.MidGrid[nx, ny] != null || (board.OverlayGrid != null && board.OverlayGrid[nx, ny] != null)))
                 {
                     cells.Add(new Vector2Int(nx, ny));
                 }

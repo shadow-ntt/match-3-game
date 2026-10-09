@@ -14,7 +14,7 @@ public class VerticalRocketItem : BoosterItem
         for (int row = 0; row < board.Height; row++)
         {
             if (row == y) continue;
-            if (board.MidGrid[x, row] != null)
+            if (board.MidGrid[x, row] != null || (board.OverlayGrid != null && board.OverlayGrid[x, row] != null))
             {
                 cells.Add(new Vector2Int(x, row));
             }

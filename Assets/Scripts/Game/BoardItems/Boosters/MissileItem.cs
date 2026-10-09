@@ -33,37 +33,54 @@ public class MissileItem : BoosterItem
     }
 
 
-    // Tim vat can tren cac tang Overlay, Under hoac item khong phai MidLayer tren MidGrid
+    // Tim vat can gan nhat tren cac tang Overlay, Under hoac item khong phai MidLayer tren MidGrid
     private Vector2Int? FindSpecialTarget(Board board, int originX, int originY)
     {
+        Vector2Int origin = new Vector2Int(originX, originY);
+        Vector2Int? bestTarget = null;
+        float minDistance = float.MaxValue;
+
         for (int col = 0; col < board.Width; col++)
         {
             for (int row = 0; row < board.Height; row++)
             {
                 if (col == originX && row == originY) continue;
 
+                bool isTarget = false;
                 if (board.OverlayGrid != null && board.OverlayGrid[col, row] != null)
                 {
-                    return new Vector2Int(col, row);
+                    isTarget = true;
+                }
+                else if (board.UnderGrid != null && board.UnderGrid[col, row] != null)
+                {
+                    var underObj = board.UnderGrid[col, row];
+                    if (underObj != null && (!underObj.TryGetComponent<IBoardItem>(out var underItem) || underItem.ItemId != EnumItemBoard.Spawn))
+                    {
+                        isTarget = true;
+                    }
+                }
+                else
+                {
+                    var obj = board.MidGrid[col, row];
+                    if (obj != null && obj.TryGetComponent<IBoardItem>(out var item) && !BoardItemUtils.IsMidLayer(item))
+                    {
+                        isTarget = true;
+                    }
                 }
 
-                if (board.UnderGrid != null && board.UnderGrid[col, row] != null)
+                if (isTarget)
                 {
-                    return new Vector2Int(col, row);
-                }
-
-                var obj = board.MidGrid[col, row];
-                if (obj == null) continue;
-                if (!obj.TryGetComponent<IBoardItem>(out var item)) continue;
-
-                if (!BoardItemUtils.IsMidLayer(item))
-                {
-                    return new Vector2Int(col, row);
+                    float dist = Vector2Int.Distance(origin, new Vector2Int(col, row));
+                    if (dist < minDistance)
+                    {
+                        minDistance = dist;
+                        bestTarget = new Vector2Int(col, row);
+                    }
                 }
             }
         }
 
-        return null;
+        return bestTarget;
     }
 
     // Chon ngau nhien mot gem tren ban co

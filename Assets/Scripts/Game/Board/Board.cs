@@ -260,6 +260,75 @@ public class Board : MonoBehaviour
     }
 
 
+    // ==========================================
+    // THAO TAC XOA ITEM TREN CAC TANG GRID
+    // ==========================================
+
+    // Xoa 1 item tren MidGrid va tra ve Pooltem
+    public void RemoveMidItem(int x, int y)
+    {
+        if (!IsInBounds(x, y) || _midGrid == null) return;
+        GameObject obj = _midGrid[x, y];
+        if (obj == null) return;
+
+        Pooltem pool = GetPool();
+        if (pool != null) pool.ReturnBoardItem(obj);
+        _midGrid[x, y] = null;
+
+        if (_boardCellGrid != null && _boardCellGrid[x, y] != null &&
+            _boardCellGrid[x, y].TryGetComponent<BoardCell>(out var cell))
+        {
+            cell.State = EnumStateBoardCell.Empty;
+            cell.IsGettingFilled = false;
+        }
+    }
+
+    // Xoa 1 item tren OverlayGrid va tra ve Pooltem
+    public void RemoveOverlayItem(int x, int y)
+    {
+        if (!IsInBounds(x, y) || _overlayGrid == null) return;
+        GameObject obj = _overlayGrid[x, y];
+        if (obj == null) return;
+
+        Pooltem pool = GetPool();
+        if (pool != null) pool.ReturnBoardItem(obj);
+        _overlayGrid[x, y] = null;
+
+        bool isMidEmpty = _midGrid == null || _midGrid[x, y] == null;
+        if (isMidEmpty && _boardCellGrid != null && _boardCellGrid[x, y] != null &&
+            _boardCellGrid[x, y].TryGetComponent<BoardCell>(out var cell))
+        {
+            cell.State = EnumStateBoardCell.Empty;
+            cell.IsGettingFilled = false;
+        }
+    }
+
+    // Xoa 1 item tren UnderGrid (neu khong phai Spawner) va tra ve Pooltem
+    public void RemoveUnderItem(int x, int y)
+    {
+        if (!IsInBounds(x, y) || _underGrid == null) return;
+        GameObject obj = _underGrid[x, y];
+        if (obj == null) return;
+
+        if (obj.TryGetComponent<IBoardItem>(out var underItem) && underItem.ItemId == EnumItemBoard.Spawn)
+        {
+            return;
+        }
+
+        Pooltem pool = GetPool();
+        if (pool != null) pool.ReturnBoardItem(obj);
+        _underGrid[x, y] = null;
+
+        bool isMidEmpty = _midGrid == null || _midGrid[x, y] == null;
+        bool isOverlayEmpty = _overlayGrid == null || _overlayGrid[x, y] == null;
+        if (isMidEmpty && isOverlayEmpty && _boardCellGrid != null && _boardCellGrid[x, y] != null &&
+            _boardCellGrid[x, y].TryGetComponent<BoardCell>(out var cell))
+        {
+            cell.State = EnumStateBoardCell.Empty;
+            cell.IsGettingFilled = false;
+        }
+    }
+
     // 3. THU HỒI VỀ POOL
     // Xóa toàn bộ các đối tượng đã vẽ trên bàn cờ và trả về Pooltem
     [ContextMenu("Xóa Bàn Cờ (Clear Board)")]
