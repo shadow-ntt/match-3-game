@@ -11,14 +11,12 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
     [SerializeField] private float explosionDelay = 0.25f;
 
     private BoosterEffectPlayer _effectPlayer;
-    private BoosterComboEffectPlayer _comboEffectPlayer;
-    private LightBallComboHandler _lightBallComboHandler;
+    private BoosterCombos _combos;
 
     public Board Board => board;
     public PoolBlockBreakEffect PoolParticle => poolParticle;
     public BoosterEffectPlayer EffectPlayer => _effectPlayer;
-    public BoosterComboEffectPlayer ComboEffectPlayer => _comboEffectPlayer;
-    public LightBallComboHandler LightBallComboHandler => _lightBallComboHandler;
+    public BoosterCombos Combos => _combos;
 
     protected override void Awake()
     {
@@ -28,9 +26,8 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         if (board == null) board = FindAnyObjectByType<Board>();
         if (poolParticle == null) poolParticle = FindAnyObjectByType<PoolBlockBreakEffect>();
 
+        _combos = new BoosterCombos();
         _effectPlayer = new BoosterEffectPlayer(this);
-        _comboEffectPlayer = new BoosterComboEffectPlayer(this);
-        _lightBallComboHandler = new LightBallComboHandler(this);
     }
 
     // Kich hoat booster tai (x, y), ho tro kich hoat day chuyen (Chain Reaction)
@@ -57,51 +54,54 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         int cx = xB;
         int cy = yB;
 
+        // Tim Combo tu BoosterCombos
+        var combo = _combos != null
+            ? _combos.GetCombo(boosterA.ItemId, boosterB.ItemId)
+            : null;
+
+        if (combo == null) return false;
+
         // Lay danh sach cac o bi anh huong boi combo
-        var affectedCells = BoosterComboResolver.GetComboAffectedCells(boosterA.ItemId, boosterB.ItemId, board, cx, cy);
+        var affectedCells = combo.GetAffectedCells(board, cx, cy, boosterA.ItemId, boosterB.ItemId);
 
         GameObject objA = board.MidGrid[xA, yA];
         GameObject objB = board.MidGrid[xB, yB];
         Vector3 centerPos = objB != null ? objB.transform.position : GridUtils.GridToWorld(board.Grid, cx, cy);
 
         // Phat animation hop nhat combo truoc khi xoa
-        await _comboEffectPlayer.PlayComboMergeAnimationAsync(objA, objB, boosterA.ItemId, boosterB.ItemId, centerPos);
+        await combo.PlayMergeAnimationAsync(objA, objB, centerPos);
 
-        // Rung camera neu combo co chua TNT
+        // Rung camera neu combo co cau hinh
         var shake = CameraShakeService.Instance;
-        if (boosterA.ItemId == EnumItemBoard.TNT && boosterB.ItemId == EnumItemBoard.TNT)
+        if (combo.ShakeType == CameraShakeType.Mega)
         {
             shake?.ShakeMega().Forget();
         }
-        else if (boosterA.ItemId == EnumItemBoard.TNT || boosterB.ItemId == EnumItemBoard.TNT)
+        else if (combo.ShakeType == CameraShakeType.TNT)
         {
             shake?.ShakeTNT().Forget();
         }
-
-        Vector3 lightBallPos = (boosterA.ItemId == EnumItemBoard.LightBall && objA != null)
-            ? objA.transform.position
-            : (objB != null ? objB.transform.position : centerPos);
 
         // Xoa 2 vien booster tham gia combo truoc
         RemoveItem(xA, yA);
         RemoveItem(xB, yB);
 
-        // Kiem tra combo LightBall + Booster khac (khong phai LightBall + LightBall)
-        bool isLightBallWithOtherBooster = (boosterA.ItemId == EnumItemBoard.LightBall || boosterB.ItemId == EnumItemBoard.LightBall)
-                                           && (boosterA.ItemId != boosterB.ItemId);
-
-        if (isLightBallWithOtherBooster)
-        {
-            EnumItemBoard partnerType = boosterA.ItemId == EnumItemBoard.LightBall ? boosterB.ItemId : boosterA.ItemId;
-            await _lightBallComboHandler.HandleLightBallBoosterComboAsync(lightBallPos, partnerType, affectedCells, visited);
-            return true;
-        }
-
         // Gom cac booster khac nam trong vung no combo de kich hoat day chuyen
         var chainBoosters = CollectChainBoosters(affectedCells, visited);
 
-        // Phat animation va hieu ung pha huy dac trung cho tung cap combo booster
-        await _comboEffectPlayer.PlayComboActivationEffectAsync(boosterA.ItemId, boosterB.ItemId, cx, cy, xA, yA, xB, yB, affectedCells, chainBoosters);
+        // Dong goi ngu canh va thuc thi hieu ung combo
+        var context = new BoosterComboContext(
+            board,
+            this,
+            cx, cy,
+            xA, yA, xB, yB,
+            boosterA.ItemId, boosterB.ItemId,
+            affectedCells,
+            chainBoosters,
+            visited
+        );
+
+        await combo.ExecuteEffectAsync(context);
 
         // Kich hoat day chuyen cac booster nam trong vung no combo
         await ActivateChainBoostersAsync(chainBoosters, visited, 1);
@@ -133,8 +133,8 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         if (boosterObj == null) return false;
         if (!boosterObj.TryGetComponent<IBoosterActivatable>(out var booster)) return false;
 
-        // Neu nguoi choi chu dong vuot LightBall (depth == 0) ma swapTarget khong hop le thi huy
-        if (depth == 0 && booster is LightBallItem && (swapTarget == null || !BoardItemUtils.IsValidNormalItem(swapTarget)))
+        // Kiem tra dieu kien kich hoat cua chinh booster (vi du: LightBall can swapTarget hop le o depth 0)
+        if (!booster.CanActivate(depth, swapTarget))
         {
             return false;
         }
@@ -145,13 +145,6 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         // Lay danh sach cac o bi anh huong
         var affectedCells = booster.GetAffectedCells(board, x, y, swapTarget);
 
-        // Luu lai vi tri the gioi va nhan dien loai booster truoc khi xoa
-        Vector3 boosterWorldPos = boosterObj.transform.position;
-        bool isHRocket = booster is HorizontalRocketItem;
-        bool isVRocket = booster is VerticalRocketItem;
-        bool isMissile = booster is MissileItem;
-        bool isLightBall = booster is LightBallItem;
-
         // Phat animation kich hoat cua chinh booster truoc khi xoa
         await booster.PlayActivationAnimationAsync();
 
@@ -161,34 +154,10 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         // Gom cac booster khac nam trong vung no de kich hoat day chuyen
         var chainBoosters = CollectChainBoosters(affectedCells, visited);
 
-        // Phat animation projectile / blast va pha huy cac o theo loai booster
-        if (isHRocket)
-        {
-            await _effectPlayer.PlayHorizontalRocketEffectAsync(x, y, boosterWorldPos, affectedCells, chainBoosters);
-        }
-        else if (isVRocket)
-        {
-            await _effectPlayer.PlayVerticalRocketEffectAsync(x, y, boosterWorldPos, affectedCells, chainBoosters);
-        }
-        else if (isMissile)
-        {
-            await _effectPlayer.PlayMissileEffectAsync(boosterWorldPos, affectedCells, chainBoosters);
-        }
-        else if (isLightBall)
-        {
-            await _effectPlayer.PlayLightBallEffectAsync(x, y, affectedCells, chainBoosters);
-        }
-        else
-        {
-            // Rung camera khi TNT don no
-            var shake = CameraShakeService.Instance;
-            shake?.ShakeTNT().Forget();
-
-            // TNT hoac booster khac: phat no dien rong theo song
-            await _effectPlayer.PlayWaveExplosionAsync(x, y, 1, affectedCells, chainBoosters);
-
-            await DelayExplosionAsync();
-        }
+        // Phat animation projectile / blast va pha huy cac o qua da hinh (Polymorphism)
+        var context = new BoosterActivationContext(
+            board, this, x, y, affectedCells, chainBoosters, visited, swapTarget, depth);
+        await booster.ExecuteActivationEffectAsync(context);
 
         // Kich hoat day chuyen tung booster tim duoc trong vung no
         await ActivateChainBoostersAsync(chainBoosters, visited, depth + 1);
@@ -201,58 +170,79 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
     // Phat hieu ung hat no va xoa item khoi o (uu tien OverlayGrid, UnderGrid, sau do den MidGrid)
     public void ExplodeAndRemoveCell(int cx, int cy)
     {
-        if (!board.IsInBounds(cx, cy)) return;
+        if (board == null || !board.IsInBounds(cx, cy)) return;
 
-        // 1. Neu co vat can tren OverlayGrid (da, bang tuyet, day xich...), uu tien pha huy OverlayItem truoc
-        if (board.OverlayGrid != null && board.OverlayGrid[cx, cy] != null)
-        {
-            GameObject overlayObj = board.OverlayGrid[cx, cy];
-            if (overlayObj != null)
-            {
-                if (poolParticle != null)
-                {
-                    if (overlayObj.TryGetComponent<IBoardItem>(out var overlayItem) && BoardItemUtils.IsValidNormalItem(overlayItem))
-                    {
-                        poolParticle.Play(overlayObj.transform.position, overlayItem.ItemId);
-                    }
-                    else
-                    {
-                        poolParticle.Play(overlayObj.transform.position, 1);
-                    }
-                }
-                RemoveOverlayItem(cx, cy);
-                return;
-            }
-        }
+        // 1. Neu co vat can tren OverlayGrid (da, bang tuyet, day xich...), uu tien pha huy truoc
+        if (TryExplodeOverlay(cx, cy)) return;
 
         // 2. Neu co vat can tren UnderGrid (khong phai Spawner) thi pha huy UnderItem
-        if (board.UnderGrid != null && board.UnderGrid[cx, cy] != null)
-        {
-            GameObject underObj = board.UnderGrid[cx, cy];
-            if (underObj != null && (!underObj.TryGetComponent<IBoardItem>(out var underItem) || underItem.ItemId != EnumItemBoard.Spawn))
-            {
-                if (poolParticle != null)
-                {
-                    poolParticle.Play(underObj.transform.position, 1);
-                }
-                RemoveUnderItem(cx, cy);
-                return;
-            }
-        }
+        if (TryExplodeUnder(cx, cy)) return;
 
         // 3. Neu khong co vat can tang tren/duoi thi pha huy va xoa item tren MidGrid
-        GameObject obj = board.MidGrid != null ? board.MidGrid[cx, cy] : null;
-        if (obj == null) return;
+        ExplodeMid(cx, cy);
+    }
 
-        if (obj.TryGetComponent<IBoardItem>(out var item))
+    // Pha huy vat can tang OverlayGrid tai o (cx, cy)
+    private bool TryExplodeOverlay(int cx, int cy)
+    {
+        if (board.OverlayGrid == null) return false;
+        GameObject overlayObj = board.OverlayGrid[cx, cy];
+        if (overlayObj == null) return false;
+
+        PlayExplodeParticle(overlayObj, fallbackToDefault: true);
+        RemoveOverlayItem(cx, cy);
+        return true;
+    }
+
+    // Pha huy vat can tang UnderGrid tai o (cx, cy) neu khong phai Spawner
+    private bool TryExplodeUnder(int cx, int cy)
+    {
+        if (board.UnderGrid == null) return false;
+        GameObject underObj = board.UnderGrid[cx, cy];
+        if (underObj == null) return false;
+
+        if (underObj.TryGetComponent<IBoardItem>(out var underItem) && underItem.ItemId == EnumItemBoard.Spawn)
         {
-            if (poolParticle != null && BoardItemUtils.IsValidNormalItem(item))
-            {
-                poolParticle.Play(obj.transform.position, item.ItemId);
-            }
+            return false;
         }
 
+        PlayParticleDefault(underObj.transform.position);
+        RemoveUnderItem(cx, cy);
+        return true;
+    }
+
+    // Pha huy item tang giua MidGrid tai o (cx, cy)
+    private void ExplodeMid(int cx, int cy)
+    {
+        if (board.MidGrid == null) return;
+        GameObject obj = board.MidGrid[cx, cy];
+        if (obj == null) return;
+
+        PlayExplodeParticle(obj, fallbackToDefault: false);
         RemoveItem(cx, cy);
+    }
+
+    // Phat particle theo loai ngoc hoac mau mac dinh
+    private void PlayExplodeParticle(GameObject obj, bool fallbackToDefault)
+    {
+        if (poolParticle == null || obj == null) return;
+
+        if (obj.TryGetComponent<IBoardItem>(out var item) && BoardItemUtils.IsValidNormalItem(item))
+        {
+            poolParticle.Play(obj.transform.position, item.ItemId);
+        }
+        else if (fallbackToDefault)
+        {
+            PlayParticleDefault(obj.transform.position);
+        }
+    }
+
+    private void PlayParticleDefault(Vector3 position)
+    {
+        if (poolParticle != null)
+        {
+            poolParticle.Play(position, 1);
+        }
     }
 
     // Xoa 1 item khoi MidGrid va cap nhat trang thai BoardCell ve Empty

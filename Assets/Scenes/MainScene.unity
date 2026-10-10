@@ -581,7 +581,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PoolRocketProjectile
   projectilePrefab: {fileID: 4260570812058474642, guid: 338e7a428f9d7944089054c2ca5a931c, type: 3}
-  poolSize: 8
+  poolSize: 16
 --- !u!1 &577207749
 GameObject:
   m_ObjectHideFlags: 0

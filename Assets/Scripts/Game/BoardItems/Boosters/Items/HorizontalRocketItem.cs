@@ -27,5 +27,14 @@ public class HorizontalRocketItem : BoosterItem
     {
         await transform.DOScale(1.3f, 0.08f).SetLoops(2, LoopType.Yoyo).ToUniTask();
     }
+
+    public override async UniTask ExecuteActivationEffectAsync(BoosterActivationContext context)
+    {
+        if (context?.EffectPlayer != null)
+        {
+            await context.EffectPlayer.PlayHorizontalRocketEffectAsync(
+                context.X, context.Y, context.AffectedCells, context.ChainBoosters);
+        }
+    }
 }
 

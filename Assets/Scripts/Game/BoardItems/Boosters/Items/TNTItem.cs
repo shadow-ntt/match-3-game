@@ -51,5 +51,22 @@ public class TNTItem : BoosterItem
             spriteRenderer.color = Color.white;
         }
     }
+
+    public override async UniTask ExecuteActivationEffectAsync(BoosterActivationContext context)
+    {
+        // Rung camera khi TNT don no
+        var shake = CameraShakeService.Instance;
+        shake?.ShakeTNT().Forget();
+
+        if (context?.EffectPlayer != null)
+        {
+            await context.EffectPlayer.PlayWaveExplosionAsync(context.X, context.Y, 1, context.AffectedCells, context.ChainBoosters);
+        }
+
+        if (context?.Manager != null)
+        {
+            await context.Manager.DelayExplosionAsync();
+        }
+    }
 }
 

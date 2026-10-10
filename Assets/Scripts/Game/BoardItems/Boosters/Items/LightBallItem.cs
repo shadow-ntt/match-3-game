@@ -7,6 +7,18 @@ using Utils;
 // Booster LightBall: xoa tat ca gem cung mau voi swapTarget (gem bi swap vao LightBall)
 public class LightBallItem : BoosterItem
 {
+    private EnumItemBoard _targetColor = EnumItemBoard.Blank;
+
+    // Neu nguoi choi chu dong vuot LightBall (depth == 0) ma swapTarget khong hop le thi huy
+    public override bool CanActivate(int depth, IBoardItem swapTarget = null)
+    {
+        if (depth == 0 && (swapTarget == null || !BoardItemUtils.IsValidNormalItem(swapTarget)))
+        {
+            return false;
+        }
+        return true;
+    }
+
     // Phat animation phong to thu nho va xoay tron phat sang
     public override async UniTask PlayActivationAnimationAsync()
     {
@@ -15,22 +27,32 @@ public class LightBallItem : BoosterItem
         await UniTask.WhenAll(scaleTween.ToUniTask(), rotTween.ToUniTask());
     }
 
+    public override async UniTask ExecuteActivationEffectAsync(BoosterActivationContext context)
+    {
+        if (context?.EffectPlayer != null)
+        {
+            Color beamColor = BoosterColorUtils.GetItemColor(_targetColor);
+            await context.EffectPlayer.PlayLightBallEffectAsync(
+                context.X, context.Y, context.AffectedCells, context.ChainBoosters, beamColor);
+        }
+    }
+
     public override List<Vector2Int> GetAffectedCells(Board board, int x, int y, IBoardItem swapTarget = null)
     {
         var cells = new List<Vector2Int>();
         if (board == null || board.MidGrid == null) return cells;
-        EnumItemBoard targetColor = EnumItemBoard.Blank;
+
         if (swapTarget != null && BoardItemUtils.IsValidNormalItem(swapTarget))
         {
-            targetColor = swapTarget.ItemId;
+            _targetColor = swapTarget.ItemId;
         }
         else
         {
             // Neu khong co swapTarget (do no day chuyen), chon ngau nhien 1 mau gem tren ban co
-            targetColor = PickRandomColor(board);
+            _targetColor = PickRandomColor(board);
         }
 
-        if (targetColor == EnumItemBoard.Blank) return cells;
+        if (_targetColor == EnumItemBoard.Blank) return cells;
 
         for (int col = 0; col < board.Width; col++)
         {
@@ -39,7 +61,7 @@ public class LightBallItem : BoosterItem
                 if (col == x && row == y) continue;
                 var obj = board.MidGrid[col, row];
                 if (obj == null) continue;
-                if (obj.TryGetComponent<IBoardItem>(out var item) && item.ItemId == targetColor)
+                if (obj.TryGetComponent<IBoardItem>(out var item) && item.ItemId == _targetColor)
                 {
                     cells.Add(new Vector2Int(col, row));
                 }

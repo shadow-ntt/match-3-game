@@ -32,6 +32,15 @@ public class MissileItem : BoosterItem
         await transform.DOScale(1.25f, 0.1f).SetLoops(2, LoopType.Yoyo).ToUniTask();
     }
 
+    public override async UniTask ExecuteActivationEffectAsync(BoosterActivationContext context)
+    {
+        if (context?.EffectPlayer != null)
+        {
+            await context.EffectPlayer.PlayMissileEffectAsync(
+                context.X, context.Y, context.AffectedCells, context.ChainBoosters);
+        }
+    }
+
 
     // Tim vat can gan nhat tren cac tang Overlay, Under hoac item khong phai MidLayer tren MidGrid
     private Vector2Int? FindSpecialTarget(Board board, int originX, int originY)

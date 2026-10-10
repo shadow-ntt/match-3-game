@@ -24,7 +24,7 @@ public class RocketProjectile : MonoBehaviour
         List<Vector2Int> pathCells,
         Grid grid,
         Action<Vector2Int> onPassCell,
-        float cellDuration = 0.04f)
+        float cellDuration = 0.08f)
     {
         transform.position = startPos;
 

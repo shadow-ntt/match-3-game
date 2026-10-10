@@ -15,181 +15,141 @@ public class BoosterEffectPlayer
 
     // Ban 1 cap dau dan rocket trai va phai tren 1 hang
     public async UniTask<bool> PlayRocketRowAsync(
-        int row,
         int originX,
-        Vector3 originWorldPos,
+        int originY,
         List<Vector2Int> affectedCells,
         List<Vector2Int> chainBoosters)
     {
         var board = _manager.Board;
-        if (board == null || row < 0 || row >= board.Height) return false;
+        if (board == null || originY < 0 || originY >= board.Height) return false;
 
         var poolRocket = PoolRocketProjectile.Instance;
         if (poolRocket != null && poolRocket.HasPrefab)
         {
-            // Pha huy o tai goc ban neu khong phai booster day chuyen
-            Vector2Int originPos = new Vector2Int(originX, row);
-            if (board.IsInBounds(originX, row) && !chainBoosters.Contains(originPos))
-            {
-                _manager.ExplodeAndRemoveCell(originX, row);
-            }
+            ExplodeOriginIfValid(originX, originY, chainBoosters);
 
-            var leftCells = new List<Vector2Int>();
-            for (int col = originX - 1; col >= 0; col--)
-            {
-                leftCells.Add(new Vector2Int(col, row));
-            }
+            var leftCells = BoosterComboGridUtils.GetRayCells(board, originX, originY, Vector2Int.left);
+            var rightCells = BoosterComboGridUtils.GetRayCells(board, originX, originY, Vector2Int.right);
 
-            var rightCells = new List<Vector2Int>();
-            for (int col = originX + 1; col < board.Width; col++)
-            {
-                rightCells.Add(new Vector2Int(col, row));
-            }
+            Vector3 originWorldPos = GridUtils.GridToWorld(board.Grid, originX, originY);
+            //tăng thêm 2 đơn vị nữa để tăng cảm giác
+            Vector3 exitLeft = GridUtils.GridToWorld(board.Grid, -2, originY);
+            Vector3 exitRight = GridUtils.GridToWorld(board.Grid, board.Width + 2, originY);
 
-            Vector3 exitLeft = GridUtils.GridToWorld(board.Grid, -1, row);
-            Vector3 exitRight = GridUtils.GridToWorld(board.Grid, board.Width, row);
-
-            var projLeft = poolRocket.GetProjectile();
-            var projRight = poolRocket.GetProjectile();
-
-            async UniTask RunLeftAsync()
-            {
-                if (projLeft == null) return;
-                await projLeft.FlyAlongLineAsync(originWorldPos, exitLeft, leftCells, board.Grid, (cell) =>
-                {
-                    if (chainBoosters.Contains(cell)) return;
-                    _manager.ExplodeAndRemoveCell(cell.x, cell.y);
-                });
-                poolRocket.ReturnProjectile(projLeft);
-            }
-
-            async UniTask RunRightAsync()
-            {
-                if (projRight == null) return;
-                await projRight.FlyAlongLineAsync(originWorldPos, exitRight, rightCells, board.Grid, (cell) =>
-                {
-                    if (chainBoosters.Contains(cell)) return;
-                    _manager.ExplodeAndRemoveCell(cell.x, cell.y);
-                });
-                poolRocket.ReturnProjectile(projRight);
-            }
-
-            await UniTask.WhenAll(RunLeftAsync(), RunRightAsync());
+            await UniTask.WhenAll(
+                LaunchRocketBranchAsync(poolRocket, originWorldPos, exitLeft, leftCells, chainBoosters),
+                LaunchRocketBranchAsync(poolRocket, originWorldPos, exitRight, rightCells, chainBoosters)
+            );
             return false;
         }
-        else
-        {
-            // Fallback khi chua co prefab: xoa cac o thuoc hang nay
-            for (int i = 0; i < affectedCells.Count; i++)
-            {
-                Vector2Int pos = affectedCells[i];
-                if (pos.y == row && !chainBoosters.Contains(pos))
-                {
-                    _manager.ExplodeAndRemoveCell(pos.x, pos.y);
-                }
-            }
-            return true;
-        }
+
+        ExplodeCells(affectedCells, chainBoosters, pos => pos.y == originY);
+        return true;
     }
 
     // Ban 1 cap dau dan rocket len va xuong tren 1 cot
     public async UniTask<bool> PlayRocketColumnAsync(
-        int col,
+        int originX,
         int originY,
-        Vector3 originWorldPos,
         List<Vector2Int> affectedCells,
         List<Vector2Int> chainBoosters)
     {
         var board = _manager.Board;
-        if (board == null || col < 0 || col >= board.Width) return false;
+        if (board == null || originX < 0 || originX >= board.Width) return false;
 
         var poolRocket = PoolRocketProjectile.Instance;
         if (poolRocket != null && poolRocket.HasPrefab)
         {
-            // Pha huy o tai goc ban neu khong phai booster day chuyen
-            Vector2Int originPos = new Vector2Int(col, originY);
-            if (board.IsInBounds(col, originY) && !chainBoosters.Contains(originPos))
-            {
-                _manager.ExplodeAndRemoveCell(col, originY);
-            }
+            ExplodeOriginIfValid(originX, originY, chainBoosters);
 
-            var downCells = new List<Vector2Int>();
-            for (int row = originY - 1; row >= 0; row--)
-            {
-                downCells.Add(new Vector2Int(col, row));
-            }
+            var downCells = BoosterComboGridUtils.GetRayCells(board, originX, originY, Vector2Int.down);
+            var upCells = BoosterComboGridUtils.GetRayCells(board, originX, originY, Vector2Int.up);
 
-            var upCells = new List<Vector2Int>();
-            for (int row = originY + 1; row < board.Height; row++)
-            {
-                upCells.Add(new Vector2Int(col, row));
-            }
+            Vector3 originWorldPos = GridUtils.GridToWorld(board.Grid, originX, originY);
+            //tăng thêm 2 đơn vị nữa để tăng cảm giác
+            Vector3 exitDown = GridUtils.GridToWorld(board.Grid, originX, -2);
+            Vector3 exitUp = GridUtils.GridToWorld(board.Grid, originX, board.Height + 2);
 
-            Vector3 exitDown = GridUtils.GridToWorld(board.Grid, col, -1);
-            Vector3 exitUp = GridUtils.GridToWorld(board.Grid, col, board.Height);
-
-            var projDown = poolRocket.GetProjectile();
-            var projUp = poolRocket.GetProjectile();
-
-            async UniTask RunDownAsync()
-            {
-                if (projDown == null) return;
-                await projDown.FlyAlongLineAsync(originWorldPos, exitDown, downCells, board.Grid, (cell) =>
-                {
-                    if (chainBoosters.Contains(cell)) return;
-                    _manager.ExplodeAndRemoveCell(cell.x, cell.y);
-                });
-                poolRocket.ReturnProjectile(projDown);
-            }
-
-            async UniTask RunUpAsync()
-            {
-                if (projUp == null) return;
-                await projUp.FlyAlongLineAsync(originWorldPos, exitUp, upCells, board.Grid, (cell) =>
-                {
-                    if (chainBoosters.Contains(cell)) return;
-                    _manager.ExplodeAndRemoveCell(cell.x, cell.y);
-                });
-                poolRocket.ReturnProjectile(projUp);
-            }
-
-            await UniTask.WhenAll(RunDownAsync(), RunUpAsync());
+            await UniTask.WhenAll(
+                LaunchRocketBranchAsync(poolRocket, originWorldPos, exitDown, downCells, chainBoosters),
+                LaunchRocketBranchAsync(poolRocket, originWorldPos, exitUp, upCells, chainBoosters)
+            );
             return false;
         }
-        else
+
+        ExplodeCells(affectedCells, chainBoosters, pos => pos.x == originX);
+        return true;
+    }
+
+    // Ban 1 dau dan rocket theo 1 nhanh tu diem ban toi diem thoat mep ban co
+    private async UniTask LaunchRocketBranchAsync(
+        PoolRocketProjectile pool,
+        Vector3 startWorldPos,
+        Vector3 exitWorldPos,
+        List<Vector2Int> pathCells,
+        List<Vector2Int> chainBoosters)
+    {
+        if (pool == null || !pool.HasPrefab) return;
+
+        var proj = pool.GetProjectile();
+        if (proj == null) return;
+
+        var board = _manager.Board;
+        Grid grid = board != null ? board.Grid : null;
+
+        await proj.FlyAlongLineAsync(startWorldPos, exitWorldPos, pathCells, grid, (cell) =>
         {
-            // Fallback khi chua co prefab: xoa cac o thuoc cot nay
-            for (int i = 0; i < affectedCells.Count; i++)
+            if (chainBoosters != null && chainBoosters.Contains(cell)) return;
+            _manager.ExplodeAndRemoveCell(cell.x, cell.y);
+        });
+
+        pool.ReturnProjectile(proj);
+    }
+
+    // Pha huy o tai tam ban neu khong thuoc danh sach booster day chuyen
+    private void ExplodeOriginIfValid(int originX, int originY, List<Vector2Int> chainBoosters)
+    {
+        var board = _manager.Board;
+        if (board == null || !board.IsInBounds(originX, originY)) return;
+
+        Vector2Int originPos = new Vector2Int(originX, originY);
+        if (chainBoosters == null || !chainBoosters.Contains(originPos))
+        {
+            _manager.ExplodeAndRemoveCell(originX, originY);
+        }
+    }
+
+    // Kich no danh sach cac o thoa man dieu kien va khong thuoc booster day chuyen
+    private void ExplodeCells(List<Vector2Int> cells, List<Vector2Int> chainBoosters, System.Predicate<Vector2Int> filter = null)
+    {
+        if (cells == null) return;
+        for (int i = 0; i < cells.Count; i++)
+        {
+            Vector2Int pos = cells[i];
+            if ((filter == null || filter(pos)) && (chainBoosters == null || !chainBoosters.Contains(pos)))
             {
-                Vector2Int pos = affectedCells[i];
-                if (pos.x == col && !chainBoosters.Contains(pos))
-                {
-                    _manager.ExplodeAndRemoveCell(pos.x, pos.y);
-                }
+                _manager.ExplodeAndRemoveCell(pos.x, pos.y);
             }
-            return true;
         }
     }
 
     // Hieu ung phong 2 dau dan ten lua ngang ve 2 phia trai va phai
     public async UniTask PlayHorizontalRocketEffectAsync(
         int originX, int originY,
-        Vector3 originWorldPos,
         List<Vector2Int> affectedCells,
         List<Vector2Int> chainBoosters)
     {
-        bool usedFallback = await PlayRocketRowAsync(originY, originX, originWorldPos, affectedCells, chainBoosters);
+        bool usedFallback = await PlayRocketRowAsync(originX, originY, affectedCells, chainBoosters);
         if (usedFallback) await _manager.DelayExplosionAsync();
     }
 
     // Hieu ung phong 2 dau dan ten lua doc ve 2 phia duoi va tren
     public async UniTask PlayVerticalRocketEffectAsync(
         int originX, int originY,
-        Vector3 originWorldPos,
         List<Vector2Int> affectedCells,
         List<Vector2Int> chainBoosters)
     {
-        bool usedFallback = await PlayRocketColumnAsync(originX, originY, originWorldPos, affectedCells, chainBoosters);
+        bool usedFallback = await PlayRocketColumnAsync(originX, originY, affectedCells, chainBoosters);
         if (usedFallback) await _manager.DelayExplosionAsync();
     }
 
@@ -208,7 +168,21 @@ public class BoosterEffectPlayer
         }
     }
 
-    // Ban 1 ten lua Missile toi 1 toa do muc tieu va pha huy o do
+    // Ban 1 ten lua Missile toi 1 toa do muc tieu va pha huy o do (qua toa do o tren ban co)
+    public UniTask FlySingleMissileAsync(
+        int originX, int originY,
+        Vector2Int targetPos,
+        List<Vector2Int> chainBoosters,
+        float duration = 0.45f)
+    {
+        var board = _manager.Board;
+        Vector3 originWorldPos = board != null && board.Grid != null
+            ? GridUtils.GridToWorld(board.Grid, originX, originY)
+            : Vector3.zero;
+        return FlySingleMissileAsync(originWorldPos, targetPos, chainBoosters, duration);
+    }
+
+    // Ban 1 ten lua Missile toi 1 toa do muc tieu va pha huy o do (qua toa do the gioi)
     public async UniTask FlySingleMissileAsync(
         Vector3 originWorldPos,
         Vector2Int targetPos,
@@ -229,14 +203,14 @@ public class BoosterEffectPlayer
 
     // Hieu ung ten lua dan duong bay uon cong toi muc tieu
     public async UniTask PlayMissileEffectAsync(
-        Vector3 originWorldPos,
+        int originX, int originY,
         List<Vector2Int> affectedCells,
         List<Vector2Int> chainBoosters)
     {
         if (affectedCells.Count == 0) return;
 
         Vector2Int targetPos = affectedCells[0];
-        await FlySingleMissileAsync(originWorldPos, targetPos, chainBoosters);
+        await FlySingleMissileAsync(originX, originY, targetPos, chainBoosters);
         await _manager.DelayExplosionAsync();
     }
 
@@ -282,10 +256,13 @@ public class BoosterEffectPlayer
     public async UniTask PlayLightBallEffectAsync(
         int originX, int originY,
         List<Vector2Int> affectedCells,
-        List<Vector2Int> chainBoosters)
+        List<Vector2Int> chainBoosters,
+        Color beamColor = default)
     {
         var board = _manager.Board;
         if (board == null) return;
+
+        if (beamColor == default) beamColor = Color.yellow;
 
         Vector2Int center = new Vector2Int(originX, originY);
         Vector3 originWorldPos = GridUtils.GridToWorld(board.Grid, originX, originY);
@@ -293,34 +270,11 @@ public class BoosterEffectPlayer
         var poolBeam = PoolLightBallBeam.Instance;
         if (poolBeam != null && poolBeam.HasPrefab)
         {
-            // Tim mau cua gem de to mau tia sang
-            Color beamColor = Color.yellow;
-            for (int i = 0; i < affectedCells.Count; i++)
-            {
-                Vector2Int pos = affectedCells[i];
-                if (board.IsInBounds(pos.x, pos.y))
-                {
-                    var obj = board.MidGrid[pos.x, pos.y];
-                    if (obj != null && obj.TryGetComponent<IBoardItem>(out var item))
-                    {
-                        beamColor = BoosterColorUtils.GetItemColor(item.ItemId);
-                        break;
-                    }
-                }
-            }
-
             // Ban cac tia sang dong loat tu LightBall toi tung gem muc tieu
             await PlayLightBallBeamsAsync(originWorldPos, affectedCells, beamColor);
 
             // Sau khi tia sang ban toi noi, phat no va xoa tat ca gem dong loat
-            for (int i = 0; i < affectedCells.Count; i++)
-            {
-                Vector2Int pos = affectedCells[i];
-                if (!chainBoosters.Contains(pos))
-                {
-                    _manager.ExplodeAndRemoveCell(pos.x, pos.y);
-                }
-            }
+            ExplodeCells(affectedCells, chainBoosters);
 
             await _manager.DelayExplosionAsync();
         }
@@ -328,21 +282,9 @@ public class BoosterEffectPlayer
         {
             // Fallback khi chua co prefab: xoa tuan tu lan toa theo khoang cach
             var sortedCells = new List<Vector2Int>(affectedCells);
-            sortedCells.Sort((a, b) =>
-            {
-                float distA = Vector2Int.Distance(center, a);
-                float distB = Vector2Int.Distance(center, b);
-                return distA.CompareTo(distB);
-            });
+            BoosterComboGridUtils.SortByDistance(sortedCells, center);
 
-            for (int i = 0; i < sortedCells.Count; i++)
-            {
-                Vector2Int pos = sortedCells[i];
-                if (!chainBoosters.Contains(pos))
-                {
-                    _manager.ExplodeAndRemoveCell(pos.x, pos.y);
-                }
-            }
+            ExplodeCells(sortedCells, chainBoosters);
 
             await _manager.DelayExplosionAsync();
         }
