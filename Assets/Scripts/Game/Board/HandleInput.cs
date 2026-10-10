@@ -6,10 +6,8 @@ using Utils;
 // Xu ly Input cu chi (Swipe/Drag) va hoan doi cac IBoardItem tren ban co Match-3
 public class HandleInput : MonoBehaviour
 {
-    [Header("Tham chieu Ban Co & Quan ly Match")]
+    [Header("Tham chieu Ban Co & Camera")]
     [SerializeField] private Board board;
-    [SerializeField] private CheckMatchManager checkMatchManager;
-    [SerializeField] private BoosterActivationManager boosterActivationManager;
     [SerializeField] private Camera mainCamera;
 
     [Header("Cau hinh Cu chi Vuot")]
@@ -24,6 +22,14 @@ public class HandleInput : MonoBehaviour
     [Tooltip("Kieu Ease cua animation")]
     [SerializeField] private Ease swapEase = Ease.OutQuad;
 
+    // Singleton Fields khoi tao tai Start
+    private CheckMatchManager checkMatchManager;
+    private BoosterActivationManager boosterActivationManager;
+    private ItemFallManager itemFallManager;
+    private SpawnItemFromSky spawnItemFromSky;
+    private MovesManager movesManager;
+    private GoalTracker goalTracker;
+
     // Bien theo doi thao tac nguoi choi
     private IBoardItem _selectedItem;
     private Vector2 _startMousePos;
@@ -36,15 +42,24 @@ public class HandleInput : MonoBehaviour
 
     private void Awake()
     {
-        mainCamera = Camera.main;
-        if (checkMatchManager == null) checkMatchManager = FindAnyObjectByType<CheckMatchManager>();
-        if (boosterActivationManager == null) boosterActivationManager = FindAnyObjectByType<BoosterActivationManager>();
+        if (mainCamera == null) mainCamera = Camera.main;
+    }
+
+    private void Start()
+    {
+        checkMatchManager = CheckMatchManager.Instance;
+        boosterActivationManager = BoosterActivationManager.Instance;
+        itemFallManager = ItemFallManager.Instance;
+        spawnItemFromSky = SpawnItemFromSky.Instance;
+        movesManager = MovesManager.Instance;
+        goalTracker = GoalTracker.Instance;
     }
 
     private void Update()
     {
         // Khi đang di chuyển hoán đổi (isMovingSwap) thì không cho nhận input chuột
-        if (!enableInput || isMovingSwap || board == null || board.MidGrid == null) return;
+        if (!enableInput || isMovingSwap || board.MidGrid == null) return;
+        if (movesManager.IsLevelEnded || !movesManager.HasMovesLeft) return;
 
         // Bắt đầu click/chạm vào viên ngọc
         if (Input.GetMouseButtonDown(0))
@@ -96,57 +111,51 @@ public class HandleInput : MonoBehaviour
         }
     }
 
-    // Xu ly vuot: tinh huong tu InputUtils va hoan doi voi item lan can
-    public bool HandleSwipe(IBoardItem sourceItem, Vector2 startPos, Vector2 endPos)
+    // Xu ly cu vuot theo huong 4 chieu (Left, Right, Up, Down)
+    private bool HandleSwipe(IBoardItem sourceItem, Vector2 startPos, Vector2 currentPos)
     {
-        if (isMovingSwap) return false;
+        Vector2 delta = currentPos - startPos;
 
-        Vector2 dir = InputUtils.GetSwipeDirection(startPos, endPos, swipeThreshold);
-        return dir != Vector2.zero && HandleSwipe(sourceItem, dir);
-    }
-
-    // Xu ly vuot truc tiep tu huong Vector2
-    public bool HandleSwipe(IBoardItem sourceItem, Vector2 swipeDirection)
-    {
-        if (isMovingSwap) return false;
-        if (!TryGetItemCoordinates(sourceItem, out int x, out int y)) return false;
-
-        Vector2Int offset = InputUtils.SwipeDirectionToOffset(swipeDirection);
-        Vector2Int targetPos = new Vector2Int(x + offset.x, y + offset.y);
-
-        if (!board.IsInBounds(targetPos)) return false;
-
-        var targetItem = board.MidGrid[targetPos.x, targetPos.y]?.GetComponent<IBoardItem>();
-        return targetItem != null && Swap(sourceItem, targetItem);
-    }
-
-    // Hoan doi vi tri giua 2 IBoardItem bang DOTween
-    public bool Swap(IBoardItem itemA, IBoardItem itemB)
-    {
-        if (isMovingSwap || board == null || board.MidGrid == null) return false;
-        if (itemA == null || itemB == null) return false;
-
-        if (!BoardItemUtils.CanSwap(itemA, itemB)) return false;
-
-        if (!TryGetItemCoordinates(itemA, out int xA, out int yA) ||
-            !TryGetItemCoordinates(itemB, out int xB, out int yB))
+        if (delta.magnitude < swipeThreshold)
         {
             return false;
         }
 
-        // 1. Hoan doi trong ma tran MidGrid
+        Vector2 direction = InputUtils.GetSwipeDirection(delta);
+        Vector2Int offset = InputUtils.SwipeDirectionToOffset(direction);
+
+        if (!TryGetItemCoordinates(sourceItem, out int xA, out int yA))
+        {
+            return false;
+        }
+
+        int xB = xA + offset.x;
+        int yB = yA + offset.y;
+
+        if (!board.IsInBounds(xB, yB))
+        {
+            return false;
+        }
+
         GameObject objA = board.MidGrid[xA, yA];
         GameObject objB = board.MidGrid[xB, yB];
+
+        if (objA == null || objB == null)
+        {
+            return false;
+        }
+
+        IBoardItem itemB = objB.GetComponent<IBoardItem>();
+        if (itemB == null || !BoardItemUtils.CanSwap(itemB))
+        {
+            return false;
+        }
 
         board.MidGrid[xA, yA] = objB;
         board.MidGrid[xB, yB] = objA;
 
-        // 2. Hoan doi vi tri Transform bang DOTween va kiem tra match bang UniTask
-        if (objA != null && objB != null)
-        {
-            isMovingSwap = true;
-            AnimateSwapAndCheck(objA, objB, xA, yA, xB, yB).Forget();
-        }
+        isMovingSwap = true;
+        AnimateSwapAndCheck(objA, objB, xA, yA, xB, yB).Forget();
 
         return true;
     }
@@ -170,60 +179,53 @@ public class HandleInput : MonoBehaviour
             bool isBoosterB = BoardItemUtils.IsBoosterItem(itemB);
             bool activated = false;
 
-            var activationMgr = boosterActivationManager != null ? boosterActivationManager : BoosterActivationManager.Instance;
-
             // Kich hoat Booster neu co booster tham gia
-            if (isBoosterA && isBoosterB && activationMgr != null)
+            if (isBoosterA && isBoosterB)
             {
                 // Ca hai deu la booster -> Kich hoat hieu ung combo
-                activated = await activationMgr.ActivateBoosterComboAsync(xB, yB, itemA, xA, yA, itemB);
+                activated = await boosterActivationManager.ActivateBoosterComboAsync(xB, yB, itemA, xA, yA, itemB);
             }
-            else if (isBoosterA && !isBoosterB && activationMgr != null)
+            else if (isBoosterA && !isBoosterB)
             {
                 // objA (booster) da di chuyen sang (xB, yB), itemB la target bi swap vao
-                activated = await activationMgr.ActivateBoosterAsync(xB, yB, itemB);
+                activated = await boosterActivationManager.ActivateBoosterAsync(xB, yB, itemB);
             }
-            else if (isBoosterB && !isBoosterA && activationMgr != null)
+            else if (isBoosterB && !isBoosterA)
             {
                 // objB (booster) da di chuyen sang (xA, yA), itemA la target bi swap vao
-                activated = await activationMgr.ActivateBoosterAsync(xA, yA, itemA);
+                activated = await boosterActivationManager.ActivateBoosterAsync(xA, yA, itemA);
             }
+
+            bool validMove = false;
 
             if (activated)
             {
+                validMove = true;
                 // Sau khi booster no, cho cac ngoc con lai roi xuong lap khoang trong
-                if (ItemFallManager.Instance != null)
-                {
-                    await ItemFallManager.Instance.OnItemFallAsync();
-                }
+                await itemFallManager.OnItemFallAsync();
 
                 // Kiem tra cascade xem cac ngoc roi xuong co tao match moi khong
-                bool hasMatch = checkMatchManager != null && await checkMatchManager.CheckMatch();
+                bool hasMatch = await checkMatchManager.CheckMatch();
                 if (!hasMatch)
                 {
                     // Neu chua tao match, sinh ngoc moi tu tren troi roi xuong de lap day ban co
-                    if (SpawnItemFromSky.Instance != null)
-                    {
-                        await SpawnItemFromSky.Instance.SpawnFromSkyAsync();
-                    }
-                    if (ItemFallManager.Instance != null)
-                    {
-                        await ItemFallManager.Instance.OnItemFallAsync();
-                    }
+                    await spawnItemFromSky.SpawnFromSkyAsync();
+                    await itemFallManager.OnItemFallAsync();
                     // Kiem tra match sau khi ngoc moi da roi vao vi tri
-                    if (checkMatchManager != null)
-                    {
-                        await checkMatchManager.CheckMatch();
-                    }
+                    await checkMatchManager.CheckMatch();
                 }
             }
             else
             {
                 // Kiem tra Match thuong sau khi hoan doi, neu khong co thi hoan lai 2 vi tri
                 Vector2Int priorityCenter = new Vector2Int(xB, yB);
-                bool matched = checkMatchManager != null && await checkMatchManager.CheckMatch(priorityCenter);
+                bool matched = await checkMatchManager.CheckMatch(priorityCenter);
 
-                if (!matched)
+                if (matched)
+                {
+                    validMove = true;
+                }
+                else
                 {
                     board.MidGrid[xA, yA] = objA;
                     board.MidGrid[xB, yB] = objB;
@@ -231,6 +233,17 @@ public class HandleInput : MonoBehaviour
                     var backA = objA.transform.DOMove(posA, swapDuration).SetEase(swapEase);
                     var backB = objB.transform.DOMove(posB, swapDuration).SetEase(swapEase);
                     await UniTask.WhenAll(backA.ToUniTask(), backB.ToUniTask());
+                }
+            }
+
+            // Neu swap thanh cong thi tru luot di va kiem tra dieu kien ket thuc
+            if (validMove)
+            {
+                movesManager.ConsumeMove();
+
+                if (!goalTracker.IsAllCompleted && movesManager.MovesLeft <= 0)
+                {
+                    GameEventBus.RaiseLevelFailed();
                 }
             }
         }

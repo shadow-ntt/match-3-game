@@ -13,6 +13,12 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
     private BoosterEffectPlayer _effectPlayer;
     private BoosterCombos _combos;
 
+    // Singleton Fields khoi tao tai Start
+    private GoalTracker goalTracker;
+    private ScoreManager scoreManager;
+    private CameraShakeService cameraShakeService;
+    private Pooltem pooltem;
+
     public Board Board => board;
     public PoolBlockBreakEffect PoolParticle => poolParticle;
     public BoosterEffectPlayer EffectPlayer => _effectPlayer;
@@ -23,11 +29,16 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         base.Awake();
         if (Instance != this) return;
 
-        if (board == null) board = FindAnyObjectByType<Board>();
-        if (poolParticle == null) poolParticle = FindAnyObjectByType<PoolBlockBreakEffect>();
-
         _combos = new BoosterCombos();
         _effectPlayer = new BoosterEffectPlayer(this);
+    }
+
+    private void Start()
+    {
+        goalTracker = GoalTracker.Instance;
+        scoreManager = ScoreManager.Instance;
+        cameraShakeService = CameraShakeService.Instance;
+        pooltem = Pooltem.Instance;
     }
 
     // Kich hoat booster tai (x, y), ho tro kich hoat day chuyen (Chain Reaction)
@@ -41,7 +52,7 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
     // Kich hoat hieu ung combo giua 2 booster tai (xA, yA) va (xB, yB), ho tro day chuyen
     public async UniTask<bool> ActivateBoosterComboAsync(int xA, int yA, IBoardItem boosterA, int xB, int yB, IBoardItem boosterB)
     {
-        if (board == null || board.MidGrid == null) return false;
+        if (board.MidGrid == null) return false;
         if (boosterA == null || boosterB == null) return false;
 
         var visited = new HashSet<Vector2Int>
@@ -72,21 +83,25 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         await combo.PlayMergeAnimationAsync(objA, objB, centerPos);
 
         // Rung camera neu combo co cau hinh
-        var shake = CameraShakeService.Instance;
         if (combo.ShakeType == CameraShakeType.Mega)
         {
-            shake?.ShakeMega().Forget();
+            cameraShakeService.ShakeMega().Forget();
         }
         else if (combo.ShakeType == CameraShakeType.TNT)
         {
-            shake?.ShakeTNT().Forget();
+            cameraShakeService.ShakeTNT().Forget();
         }
 
         // Xoa 2 vien booster tham gia combo truoc
+        goalTracker.RegisterDestroyed((int)boosterA.ItemId);
+        goalTracker.RegisterDestroyed((int)boosterB.ItemId);
+
+        scoreManager.AddScore(2, isObstacle: false, isByBooster: true);
+
         RemoveItem(xA, yA);
         RemoveItem(xB, yB);
 
-        // Gom cac booster khac nam trong vung no combo de kich hoat day chuyen
+        // Gom cac booster khac nam trong vung no de kich hoat day chuyen
         var chainBoosters = CollectChainBoosters(affectedCells, visited);
 
         // Dong goi ngu canh va thuc thi hieu ung combo
@@ -103,23 +118,21 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
 
         await combo.ExecuteEffectAsync(context);
 
-        // Kich hoat day chuyen cac booster nam trong vung no combo
+        // Kich hoat day chuyen cac booster con lai
         await ActivateChainBoostersAsync(chainBoosters, visited, 1);
 
         return true;
     }
 
-    // Kich hoat day chuyen cac booster tu danh sach toa do duoc truyen vao
+    // Kich hoat day chuyen tu ben ngoai
     public async UniTask TriggerChainBoostersAsync(List<Vector2Int> cells)
     {
-        if (cells == null || cells.Count == 0 || board == null || board.MidGrid == null) return;
-
         var visited = new HashSet<Vector2Int>();
         var chainBoosters = CollectChainBoosters(cells, visited);
-        await ActivateChainBoostersAsync(chainBoosters, visited, 0);
+        await ActivateChainBoostersAsync(chainBoosters, visited, 1);
     }
 
-    // Ham noi bo thuc hien kich hoat booster va de quy no day chuyen
+    // Ham noi bo thuc hien kich hoat booster don le va xu ly day chuyen de quy
     public async UniTask<bool> ActivateBoosterInternalAsync(
         int x, int y,
         IBoardItem swapTarget,
@@ -127,7 +140,7 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         int depth)
     {
         if (depth > 15) return false;
-        if (board == null || board.MidGrid == null || !board.IsInBounds(x, y)) return false;
+        if (board.MidGrid == null || !board.IsInBounds(x, y)) return false;
 
         GameObject boosterObj = board.MidGrid[x, y];
         if (boosterObj == null) return false;
@@ -148,6 +161,12 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         // Phat animation kich hoat cua chinh booster truoc khi xoa
         await booster.PlayActivationAnimationAsync();
 
+        // Ghi nhan booster bi pha huy truoc khi xoa khoi ban co
+        var bItem = booster as IBoardItem;
+        if (bItem != null) goalTracker.RegisterDestroyed((int)bItem.ItemId);
+
+        scoreManager.AddScore(1, isObstacle: false, isByBooster: true);
+
         // Xoa ban than booster khoi ban co
         RemoveItem(x, y);
 
@@ -159,23 +178,21 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
             board, this, x, y, affectedCells, chainBoosters, visited, swapTarget, depth);
         await booster.ExecuteActivationEffectAsync(context);
 
-        // Kich hoat day chuyen tung booster tim duoc trong vung no
+        // Kich hoat day chuyen cac booster con lai
         await ActivateChainBoostersAsync(chainBoosters, visited, depth + 1);
 
         return true;
     }
 
-
-
-    // Phat hieu ung hat no va xoa item khoi o (uu tien OverlayGrid, UnderGrid, sau do den MidGrid)
+    // Pha huy va xoa item tai 1 o tren ban co (Ho tro pha huy vat can OverlayGrid, UnderGrid va MidGrid)
     public void ExplodeAndRemoveCell(int cx, int cy)
     {
-        if (board == null || !board.IsInBounds(cx, cy)) return;
+        if (!board.IsInBounds(cx, cy)) return;
 
-        // 1. Neu co vat can tren OverlayGrid (da, bang tuyet, day xich...), uu tien pha huy truoc
+        // 1. Uu tien pha huy vat can tren OverlayGrid (da, bang tuyet, day xich...) neu co
         if (TryExplodeOverlay(cx, cy)) return;
 
-        // 2. Neu co vat can tren UnderGrid (khong phai Spawner) thi pha huy UnderItem
+        // 2. Uu tien tiep theo pha huy vat can tren UnderGrid (ngoai tru Spawner)
         if (TryExplodeUnder(cx, cy)) return;
 
         // 3. Neu khong co vat can tang tren/duoi thi pha huy va xoa item tren MidGrid
@@ -189,8 +206,14 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         GameObject overlayObj = board.OverlayGrid[cx, cy];
         if (overlayObj == null) return false;
 
+        int itemId = overlayObj.TryGetComponent<IBoardItem>(out var it) ? (int)it.ItemId : (int)EnumItemBoard.Blank;
+
         PlayExplodeParticle(overlayObj, fallbackToDefault: true);
         RemoveOverlayItem(cx, cy);
+
+        if (itemId > 0) goalTracker.RegisterDestroyed(itemId);
+        scoreManager.AddScore(1, isObstacle: true, isByBooster: true);
+
         return true;
     }
 
@@ -206,8 +229,14 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
             return false;
         }
 
+        int itemId = underItem != null ? (int)underItem.ItemId : (int)EnumItemBoard.Blank;
+
         PlayParticleDefault(underObj.transform.position);
         RemoveUnderItem(cx, cy);
+
+        if (itemId > 0) goalTracker.RegisterDestroyed(itemId);
+        scoreManager.AddScore(1, isObstacle: true, isByBooster: true);
+
         return true;
     }
 
@@ -218,8 +247,13 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         GameObject obj = board.MidGrid[cx, cy];
         if (obj == null) return;
 
+        int itemId = obj.TryGetComponent<IBoardItem>(out var midItem) ? (int)midItem.ItemId : (int)EnumItemBoard.Blank;
+
         PlayExplodeParticle(obj, fallbackToDefault: false);
         RemoveItem(cx, cy);
+
+        if (itemId > 0) goalTracker.RegisterDestroyed(itemId);
+        scoreManager.AddScore(1, isObstacle: false, isByBooster: true);
     }
 
     // Phat particle theo loai ngoc hoac mau mac dinh
@@ -246,13 +280,13 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
     }
 
     // Xoa 1 item khoi MidGrid va cap nhat trang thai BoardCell ve Empty
-    private void RemoveItem(int x, int y) => board?.RemoveMidItem(x, y);
+    private void RemoveItem(int x, int y) => board.RemoveMidItem(x, y);
 
     // Xoa 1 item khoi OverlayGrid va cap nhat trang thai BoardCell neu can
-    private void RemoveOverlayItem(int x, int y) => board?.RemoveOverlayItem(x, y);
+    private void RemoveOverlayItem(int x, int y) => board.RemoveOverlayItem(x, y);
 
     // Xoa 1 item khoi UnderGrid neu khong phai Spawner
-    private void RemoveUnderItem(int x, int y) => board?.RemoveUnderItem(x, y);
+    private void RemoveUnderItem(int x, int y) => board.RemoveUnderItem(x, y);
 
     // Cho vu no hoan tat theo thoi gian delay cau hinh
     public UniTask DelayExplosionAsync(float multiplier = 1f)
@@ -267,7 +301,7 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
     private List<Vector2Int> CollectChainBoosters(List<Vector2Int> affectedCells, HashSet<Vector2Int> visited)
     {
         var chainBoosters = new List<Vector2Int>();
-        if (affectedCells == null || board == null || board.MidGrid == null) return chainBoosters;
+        if (affectedCells == null || board.MidGrid == null) return chainBoosters;
 
         for (int i = 0; i < affectedCells.Count; i++)
         {
@@ -298,10 +332,4 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
             await ActivateBoosterInternalAsync(cPos.x, cPos.y, null, visited, nextDepth);
         }
     }
-
-
-
-
 }
-
-

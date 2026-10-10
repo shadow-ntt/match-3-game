@@ -13,6 +13,13 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
     private LineScanMatchChecker _matchChecker;
     private bool _isProcessing;
 
+    // Singleton Fields khoi tao tai Start
+    private ScoreManager scoreManager;
+    private GoalTracker goalTracker;
+    private ItemFallManager itemFallManager;
+    private SpawnItemFromSky spawnItemFromSky;
+    private Pooltem pooltem;
+
     public Board Board => board;
     public PoolBlockBreakEffect PoolParticle => poolParticle;
     public bool IsProcessing => _isProcessing;
@@ -20,22 +27,16 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
     protected override void Awake()
     {
         base.Awake();
-        if (Instance != this) return;
-
-        if (board == null)
-        {
-            board = FindAnyObjectByType<Board>();
-        }
-
-        if (poolParticle == null)
-        {
-            poolParticle = FindAnyObjectByType<PoolBlockBreakEffect>();
-        }
     }
 
     private void Start()
     {
         _matchChecker = new LineScanMatchChecker(board);
+        scoreManager = ScoreManager.Instance;
+        goalTracker = GoalTracker.Instance;
+        itemFallManager = ItemFallManager.Instance;
+        spawnItemFromSky = SpawnItemFromSky.Instance;
+        pooltem = Pooltem.Instance;
     }
 
     // Kiem tra nhanh co match tren ban co hay khong
@@ -54,6 +55,9 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         _isProcessing = true;
         Vector2Int? currentCenter = priorityCenter;
 
+        scoreManager.ResetCombo();
+        int cascadeStep = 0;
+
         try
         {
             while (true)
@@ -69,6 +73,12 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                         break;
                     }
 
+                    if (cascadeStep > 0)
+                    {
+                        scoreManager.IncrementCombo();
+                    }
+                    cascadeStep++;
+
                     // Nổ tất cả các match
                     ExplodeMatches(matches);
 
@@ -79,41 +89,29 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                     }
 
                     // Cho các ngọc hiện có rơi xuống lấp khoảng trống
-                    if (ItemFallManager.Instance != null)
-                    {
-                        await ItemFallManager.Instance.OnItemFallAsync();
-                    }
+                    await itemFallManager.OnItemFallAsync();
 
                     // Sau lượt nổ đầu tiên thì các lượt nổ tiếp theo không còn tâm ưu tiên
                     currentCenter = null;
                 }
 
-                // PHA 2: CHỈ SINH NGỌC MỚI TỪ TRỜI KHI ĐÃ HẾT MATCH TRÊN BÀN CỜ
-                bool spawned = false;
-                if (SpawnItemFromSky.Instance != null)
-                {
-                    spawned = await SpawnItemFromSky.Instance.SpawnFromSkyAsync();
-                }
+                // PHA 2: SINH NGỌC MỚI TỪ TRỜI RƠI XUỐNG ĐỂ LẤP ĐẦY BÀN CỜ
+                // Chỉ sinh từ trên trời khi toàn bộ ngọc hiện có đã rơi hết và không còn tạo match nào
 
-                if (!spawned)
+                bool anySpawned = await spawnItemFromSky.SpawnFromSkyAsync();
+
+                if (!anySpawned)
                 {
-                    // Bàn cờ đã đầy hoặc không còn ô nào spawn được nữa, và Pha 1 đã xác nhận hết match
+                    // Không có thêm ô nào được sinh mới -> bàn cờ đã đầy và ổn định
                     break;
                 }
 
-                // Cho ngọc mới rơi ổn định nếu có khoảng trống bổ sung (ví dụ rơi chéo)
-                if (ItemFallManager.Instance != null)
-                {
-                    await ItemFallManager.Instance.OnItemFallAsync();
-                }
+                // Sau khi sinh ngoc moi, cho cac ngoc roi xuong vi tri
+                await itemFallManager.OnItemFallAsync();
 
-                // Sau khi ngọc mới rơi xuống, kiểm tra xem có tạo match mới hay không
-                var matchesAfterSpawn = _matchChecker.FindAllMatches(null);
-                if (matchesAfterSpawn.Count == 0)
-                {
-                    // Ngọc sinh ra không tạo match mới và bàn cờ đã được lấp đầy
-                    break;
-                }
+                // Sau khi ngoc moi roi xong, vong lap se quay lai kiem tra match
+                // Neu ngoc moi roi xuong tao thanh match moi -> lap lai PHA 1 (Cascade tiep tuc)
+                // Neu ngoc moi roi xuong khong tao match -> FindAllMatches tra ve 0 -> thoat vong lap
             }
 
             return true;
@@ -124,7 +122,7 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         }
     }
 
-    // No tat ca cac match trong danh sach
+    // No tat ca cac cum match (Normal Match va Special Match)
     private void ExplodeMatches(List<MatchData> matches)
     {
         for (int i = 0; i < matches.Count; i++)
@@ -141,9 +139,10 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         }
     }
 
-    // Xu ly MatchType.Normal: phat particle no, tra item ve pool va xoa khoi grid
+    // Xu ly Normal Match: phat particle no cho cac gem va xoa khoi grid
     private void HandleNormalMatch(MatchData match)
     {
+        int count = 0;
         for (int j = 0; j < match.Matches.Count; j++)
         {
             Vector2Int pos = match.Matches[j];
@@ -152,7 +151,7 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
 
             poolParticle.Play(itemObj.transform.position, (EnumItemBoard)match.matchID);
 
-            Pooltem.Instance.ReturnBoardItem(itemObj);
+            pooltem.ReturnBoardItem(itemObj);
             board.MidGrid[pos.x, pos.y] = null;
 
             if (board.BoardCellGrid[pos.x, pos.y] != null &&
@@ -161,6 +160,13 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 cell.State = EnumStateBoardCell.Empty;
                 cell.IsGettingFilled = false;
             }
+            count++;
+        }
+
+        if (count > 0)
+        {
+            scoreManager.AddScore(count, isObstacle: false, isByBooster: false);
+            goalTracker.RegisterDestroyed(match.matchID, count);
         }
     }
 
@@ -170,6 +176,7 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         Vector2Int center = match.centerCell;
         EnumItemBoard boosterId = GetBoosterIdForMatch(match.MatchType);
 
+        int count = 0;
         // Xoa toan bo cac gem trong cum match
         for (int j = 0; j < match.Matches.Count; j++)
         {
@@ -179,7 +186,7 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
 
             poolParticle.Play(itemObj.transform.position, (EnumItemBoard)match.matchID);
 
-            Pooltem.Instance.ReturnBoardItem(itemObj);
+            pooltem.ReturnBoardItem(itemObj);
             board.MidGrid[pos.x, pos.y] = null;
 
             if (board.BoardCellGrid[pos.x, pos.y] != null &&
@@ -188,6 +195,13 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 cell.State = EnumStateBoardCell.Empty;
                 cell.IsGettingFilled = false;
             }
+            count++;
+        }
+
+        if (count > 0)
+        {
+            scoreManager.AddScore(count, isObstacle: false, isByBooster: false);
+            goalTracker.RegisterDestroyed(match.matchID, count);
         }
 
         // Sinh booster tai centerCell neu ID hop le
@@ -195,36 +209,30 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
 
         Vector3 worldPos = GridUtils.GridToWorld(board.Grid, center.x, center.y);
         Transform parent = board.MidTilemap != null ? board.MidTilemap.transform : board.transform;
-        GameObject boosterObj = Pooltem.Instance.SpawnBoardItem((int)boosterId, worldPos, Quaternion.identity, parent);
+        GameObject boosterObj = pooltem.SpawnBoardItem((int)boosterId, worldPos, Quaternion.identity, parent);
         if (boosterObj == null) return;
 
         board.MidGrid[center.x, center.y] = boosterObj;
 
         if (board.BoardCellGrid[center.x, center.y] != null &&
-            board.BoardCellGrid[center.x, center.y].TryGetComponent<BoardCell>(out var boosterCell))
+            board.BoardCellGrid[center.x, center.y].TryGetComponent<BoardCell>(out var cellComp))
         {
-            boosterCell.State = EnumStateBoardCell.Occupied;
-            boosterCell.IsGettingFilled = false;
+            cellComp.State = EnumStateBoardCell.Occupied;
+            cellComp.IsGettingFilled = false;
         }
     }
 
-    // Lay EnumItemBoard tuong ung cho booster theo MatchType
-    private static EnumItemBoard GetBoosterIdForMatch(MatchType matchType)
+    // Anh xa MatchType sang ID booster tuong ung
+    private EnumItemBoard GetBoosterIdForMatch(MatchType matchType)
     {
-        switch (matchType)
+        return matchType switch
         {
-            case MatchType.HorizontalRocket:
-                return EnumItemBoard.HorizontalRocket;
-            case MatchType.VerticalRocket:
-                return EnumItemBoard.VerticalRocket;
-            case MatchType.TNT:
-                return EnumItemBoard.TNT;
-            case MatchType.Missile:
-                return EnumItemBoard.Missile;
-            case MatchType.LightBall:
-                return EnumItemBoard.LightBall;
-            default:
-                return EnumItemBoard.Blank;
-        }
+            MatchType.HorizontalRocket => EnumItemBoard.HorizontalRocket,
+            MatchType.VerticalRocket => EnumItemBoard.VerticalRocket,
+            MatchType.TNT => EnumItemBoard.TNT,
+            MatchType.Missile => EnumItemBoard.Missile,
+            MatchType.LightBall => EnumItemBoard.LightBall,
+            _ => EnumItemBoard.Blank
+        };
     }
 }

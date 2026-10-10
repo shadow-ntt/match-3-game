@@ -66,12 +66,19 @@ public class Board : MonoBehaviour
         return IsInBounds(pos.x, pos.y);
     }
 
+    private SaveManager saveManager;
+    private Pooltem pooltem;
+
     private void Awake()
     {
-        LoadLevelData(levelNumber);
     }
+
     private void Start()
     {
+        saveManager = SaveManager.Instance;
+        pooltem = Pooltem.Instance;
+        LoadLevelData(levelNumber);
+
         if (autoLoadOnStart)
         {
             LoadAndDrawBoard();
@@ -80,39 +87,15 @@ public class Board : MonoBehaviour
 
     // 1. LẤY DỮ LIỆU JSON TỪ SAVEMANAGER
 
-    private SaveManager GetSaveManager()
-    {
-        if (SaveManager.Instance != null) return SaveManager.Instance;
-        return FindAnyObjectByType<SaveManager>();
-    }
-
-    private Pooltem GetPool()
-    {
-        if (Pooltem.Instance != null) return Pooltem.Instance;
-        return FindAnyObjectByType<Pooltem>();
-    }
-
     // Tải LevelData từ file JSON thông qua SaveManager
     public bool LoadLevelData(int level)
     {
         levelNumber = level;
-        SaveManager saveManager = GetSaveManager();
-
-        if (saveManager == null)
-        {
-            Debug.LogError("[Board] Không tìm thấy SaveManager trong scene để đọc JSON!");
-            return false;
-        }
+        if (saveManager == null) saveManager = SaveManager.Instance;
 
         _levelData = saveManager.LoadLevel(levelNumber);
+        if (_levelData == null) return false;
 
-        if (_levelData == null)
-        {
-            Debug.LogWarning($"[Board] Không thể tải dữ liệu JSON cho Level {levelNumber} từ: {saveManager.GetLevelFilePath(levelNumber)}");
-            return false;
-        }
-
-        Debug.Log($"[Board] Đã tải thành công dữ liệu JSON cho Level {levelNumber}.");
         return true;
     }
 
@@ -131,13 +114,6 @@ public class Board : MonoBehaviour
         if (_levelData == null)
         {
             Debug.LogWarning("[Board] _levelData đang rỗng! Vui lòng gọi LoadLevelData trước.");
-            return;
-        }
-
-        Pooltem pool = GetPool();
-        if (pool == null)
-        {
-            Debug.LogError("[Board] Không tìm thấy Pooltem trong scene để spawn item!");
             return;
         }
 
@@ -178,16 +154,16 @@ public class Board : MonoBehaviour
         }
 
         // 1. TANG BOARD: Chua -1 (Blank), 0 (Board), 1 (Spawn)
-        SpawnLayer(_levelData.BoardLevel, boardTilemap, "BoardCell", _boardCellGrid, width, height, pool, BoardItemUtils.IsValidBoardCell);
+        SpawnLayer(_levelData.BoardLevel, boardTilemap, "BoardCell", _boardCellGrid, width, height, pooltem, BoardItemUtils.IsValidBoardCell);
 
         // 2. TANG 2: Layer Under (Lop duoi: Diem sinh ngoc Spawner id = 1 / Spawn, nen dac biet...)
-        SpawnLayer(_levelData.UnderLayerItem, underTilemap, "UnderItem", _underGrid, width, height, pool, BoardItemUtils.IsValidUnderItem);
+        SpawnLayer(_levelData.UnderLayerItem, underTilemap, "UnderItem", _underGrid, width, height, pooltem, BoardItemUtils.IsValidUnderItem);
 
         // 3. TANG 3: Layer Mid (Layer giua: Cac vien ngoc Match-3: 102..108 va Booster: 301..305)
-        SpawnLayer(_levelData.MidLayer, midTilemap, "MidItem", _midGrid, width, height, pool, BoardItemUtils.IsMidLayer);
+        SpawnLayer(_levelData.MidLayer, midTilemap, "MidItem", _midGrid, width, height, pooltem, BoardItemUtils.IsMidLayer);
 
         // 4. TANG 4: Layer Overlay (Lop phu tren ngoc: bang tuyet, day xich, long sat, mang nhen...)
-        SpawnLayer(_levelData.OverLayerItem, overlayTilemap, "OverlayItem", _overlayGrid, width, height, pool, BoardItemUtils.IsValidOverlayItem);
+        SpawnLayer(_levelData.OverLayerItem, overlayTilemap, "OverlayItem", _overlayGrid, width, height, pooltem, BoardItemUtils.IsValidOverlayItem);
 
         // Dong bo State cua BoardCell theo MidGrid
         for (int x = 0; x < width; x++)
@@ -271,8 +247,7 @@ public class Board : MonoBehaviour
         GameObject obj = _midGrid[x, y];
         if (obj == null) return;
 
-        Pooltem pool = GetPool();
-        if (pool != null) pool.ReturnBoardItem(obj);
+        pooltem.ReturnBoardItem(obj);
         _midGrid[x, y] = null;
 
         if (_boardCellGrid != null && _boardCellGrid[x, y] != null &&
@@ -290,8 +265,7 @@ public class Board : MonoBehaviour
         GameObject obj = _overlayGrid[x, y];
         if (obj == null) return;
 
-        Pooltem pool = GetPool();
-        if (pool != null) pool.ReturnBoardItem(obj);
+        pooltem.ReturnBoardItem(obj);
         _overlayGrid[x, y] = null;
 
         bool isMidEmpty = _midGrid == null || _midGrid[x, y] == null;
@@ -315,8 +289,7 @@ public class Board : MonoBehaviour
             return;
         }
 
-        Pooltem pool = GetPool();
-        if (pool != null) pool.ReturnBoardItem(obj);
+        pooltem.ReturnBoardItem(obj);
         _underGrid[x, y] = null;
 
         bool isMidEmpty = _midGrid == null || _midGrid[x, y] == null;
@@ -334,21 +307,12 @@ public class Board : MonoBehaviour
     [ContextMenu("Xóa Bàn Cờ (Clear Board)")]
     public void ClearBoard()
     {
-        Pooltem pool = GetPool();
-
         for (int i = 0; i < _spawnedObjects.Count; i++)
         {
             GameObject obj = _spawnedObjects[i];
             if (obj == null) continue;
 
-            if (pool != null)
-            {
-                pool.ReturnBoardItem(obj);
-            }
-            else
-            {
-                Destroy(obj);
-            }
+            pooltem.ReturnBoardItem(obj);
         }
 
         _spawnedObjects.Clear();

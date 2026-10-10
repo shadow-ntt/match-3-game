@@ -175,7 +175,13 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
         under[0] = underGrid;
         over[0] = overGrid;
 
-        LevelData demoData = new LevelData(board, mid, under, over);
+        var goals = new System.Collections.Generic.List<GoalEntry>
+        {
+            new GoalEntry((int)EnumItemBoard.Red, 15),
+            new GoalEntry((int)EnumItemBoard.Yellow, 10)
+        };
+
+        LevelData demoData = new LevelData(board, mid, under, over, 30, 1000, goals);
         SaveLevel(1, demoData);
     }
 
@@ -186,7 +192,7 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
         if (data != null)
         {
             Debug.Log($"[SaveManager] Test load thành công Level 1!");
-            Debug.Log($"Board Layers: {data.BoardLevel?.Count}, Mid Layers: {data.MidLayer?.Count}");
+            Debug.Log($"Board Layers: {data.BoardLevel?.Count}, Mid Layers: {data.MidLayer?.Count}, Moves: {data.MovesLimit}, TargetScore: {data.TargetScore}, Goals: {data.Goals.Count}");
         }
     }
 }

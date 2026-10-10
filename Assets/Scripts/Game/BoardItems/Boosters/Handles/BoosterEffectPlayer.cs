@@ -239,7 +239,7 @@ public class BoosterEffectPlayer
             {
                 async UniTask ShootAndReturn()
                 {
-                    await beam.ShootAsync(originWorldPos, targetWorld, 0.2f, beamColor);
+                    await beam.ShootAsync(originWorldPos, targetWorld, 0.32f, beamColor);
                     poolBeam.ReturnBeam(beam);
                 }
                 tasks.Add(ShootAndReturn());

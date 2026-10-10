@@ -158,6 +158,15 @@ MonoBehaviour:
   overlayTilemap: {fileID: 312345738}
   underTilemap: {fileID: 1035975937}
   levelNumber: 1
+  movesLimit: 25
+  targetScore: 100
+  levelGoals:
+  - itemType: 105
+    amount: 100
+  - itemType: 103
+    amount: 100
+  - itemType: 102
+    amount: 100
 --- !u!4 &330671453
 Transform:
   m_ObjectHideFlags: 0

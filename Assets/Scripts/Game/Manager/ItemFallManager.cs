@@ -20,9 +20,6 @@ public class ItemFallManager : Singleton<ItemFallManager>
     protected override void Awake()
     {
         base.Awake();
-        if (Instance != this) return;
-
-        if (board == null) board = FindAnyObjectByType<Board>();
     }
 
     // Thực hiện toàn bộ chu trình rơi (thẳng và chéo) bất đồng bộ bằng UniTask

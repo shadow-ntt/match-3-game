@@ -19,11 +19,19 @@ public class GetLevelFromTileMap : MonoBehaviour
     [Header("Cau hinh Level")]
     [SerializeField] private int levelNumber = 1;
 
+    [Header("Cau hinh Luot di & Muc tieu")]
+    [SerializeField] private int movesLimit = 25;
+    [SerializeField] private int targetScore = 0;
+    [SerializeField] private List<GoalEntry> levelGoals = new List<GoalEntry>();
+
     public Tilemap BoardTilemap { get => boardTilemap; set => boardTilemap = value; }
     public Tilemap MidTilemap { get => midTilemap; set => midTilemap = value; }
     public Tilemap OverlayTilemap { get => overlayTilemap; set => overlayTilemap = value; }
     public Tilemap UnderTilemap { get => underTilemap; set => underTilemap = value; }
     public int LevelNumber { get => levelNumber; set => levelNumber = value; }
+    public int MovesLimit { get => movesLimit; set => movesLimit = value; }
+    public int TargetScore { get => targetScore; set => targetScore = value; }
+    public List<GoalEntry> LevelGoals { get => levelGoals; set => levelGoals = value; }
 
     // Lay ItemId truc tiep tu TileItem (dung EnumItemBoard)
     private int GetItemId(TileBase tile)
@@ -83,7 +91,10 @@ public class GetLevelFromTileMap : MonoBehaviour
             new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(boardTilemap, bounds) } },
             new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(midTilemap, bounds) } },
             new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(underTilemap, bounds) } },
-            new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(overlayTilemap, bounds) } }
+            new Dictionary<int, int[,]> { { 0, ConvertTilemapToGrid(overlayTilemap, bounds) } },
+            movesLimit,
+            targetScore,
+            new List<GoalEntry>(levelGoals)
         );
     }
 
@@ -126,6 +137,7 @@ public class GetLevelFromTileMap : MonoBehaviour
         int cols = bounds.size.x;
         Debug.Log($"=== THÔNG TIN PREVIEW LEVEL {levelNumber} ===");
         Debug.Log($"Kích thước bàn cờ: {rows} hàng x {cols} cột (X: {bounds.xMin}..{bounds.xMax - 1}, Y: {bounds.yMin}..{bounds.yMax - 1})");
+        Debug.Log($"Số lượt di chuyển: {data.MovesLimit}, Điểm mục tiêu: {data.TargetScore}, Số lượng Goals: {data.Goals.Count}");
 
         int[,] mid = data.MidLayer[0];
         string rowPreview = "";

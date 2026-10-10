@@ -367,5 +367,32 @@
                 }
             }
         ]
+    },
+    "movesLimit": 25,
+    "targetScore": 100,
+    "goals": {
+        "$id": 10,
+        "$type": "4|System.Collections.Generic.List`1[[GoalEntry, Assembly-CSharp]], mscorlib",
+        "$rlength": 3,
+        "$rcontent": [
+            {
+                "$id": 11,
+                "$type": "5|GoalEntry, Assembly-CSharp",
+                "itemType": 105,
+                "amount": 100
+            },
+            {
+                "$id": 12,
+                "$type": 5,
+                "itemType": 103,
+                "amount": 100
+            },
+            {
+                "$id": 13,
+                "$type": 5,
+                "itemType": 102,
+                "amount": 100
+            }
+        ]
     }
 }

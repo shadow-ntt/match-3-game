@@ -26,12 +26,16 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
     public bool IsSpawning => _isSpawning;
     public List<EnumItemBoard> AllowedColors => allowedColors;
 
+    private Pooltem pooltem;
+
     protected override void Awake()
     {
         base.Awake();
-        if (Instance != this) return;
+    }
 
-        if (board == null) board = FindAnyObjectByType<Board>();
+    private void Start()
+    {
+        pooltem = Pooltem.Instance;
     }
 
     // Quét các ô trống trên bàn cờ và sinh ngọc mới (chỉ rơi thẳng) bất đồng bộ bằng UniTask
@@ -148,7 +152,7 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
         int colorIndex = UnityEngine.Random.Range(0, allowedColors.Count);
         int colorId = (int)allowedColors[colorIndex];
 
-        GameObject newObj = Pooltem.Instance.SpawnBoardItem(colorId, path[0], Quaternion.identity, parent);
+        GameObject newObj = pooltem.SpawnBoardItem(colorId, path[0], Quaternion.identity, parent);
         if (newObj == null) return;
 
         newObj.name = $"MidItem_{colorId}_{targetX}_{targetY}";
