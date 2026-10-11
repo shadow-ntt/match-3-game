@@ -82,6 +82,7 @@ public class LevelResultPopup : MonoBehaviour
     // Xu ly click nut Next Level
     private void OnNextLevelClicked()
     {
+
         HideAllPanels();
         if (gameFlowController != null)
         {
@@ -92,6 +93,7 @@ public class LevelResultPopup : MonoBehaviour
     // Xu ly click nut Cho lai (Retry)
     private void OnRetryClicked()
     {
+
         HideAllPanels();
         if (gameFlowController != null)
         {

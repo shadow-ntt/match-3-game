@@ -80,7 +80,7 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                     cascadeStep++;
 
                     // Nổ tất cả các match
-                    ExplodeMatches(matches);
+                    ExplodeMatches(matches, cascadeStep);
 
                     // Chờ hiệu ứng hạt nổ
                     if (explosionDelay > 0f)
@@ -123,14 +123,14 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
     }
 
     // No tat ca cac cum match (Normal Match va Special Match)
-    private void ExplodeMatches(List<MatchData> matches)
+    private void ExplodeMatches(List<MatchData> matches, int cascadeStep)
     {
         for (int i = 0; i < matches.Count; i++)
         {
             var match = matches[i];
             if (match.MatchType == MatchType.Normal)
             {
-                HandleNormalMatch(match);
+                HandleNormalMatch(match, cascadeStep);
             }
             else
             {
@@ -140,7 +140,7 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
     }
 
     // Xu ly Normal Match: phat particle no cho cac gem va xoa khoi grid
-    private void HandleNormalMatch(MatchData match)
+    private void HandleNormalMatch(MatchData match, int cascadeStep)
     {
         int count = 0;
         for (int j = 0; j < match.Matches.Count; j++)
@@ -167,10 +167,11 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         {
             scoreManager.AddScore(count, isObstacle: false, isByBooster: false);
             goalTracker.RegisterDestroyed(match.matchID, count);
+            GameEventBus.RaiseMatchExploded(count, cascadeStep);
         }
     }
 
-    // Xu ly Special Match: phat particle no cho cac gem, xoa khoi grid va spawn booster tai centerCell
+    // Xu ly Special Match (tao booster): phat particle no cho cac gem, xoa khoi grid va spawn booster tai centerCell
     private void HandleSpecialMatch(MatchData match)
     {
         Vector2Int center = match.centerCell;
@@ -211,6 +212,8 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         Transform parent = board.MidTilemap != null ? board.MidTilemap.transform : board.transform;
         GameObject boosterObj = pooltem.SpawnBoardItem((int)boosterId, worldPos, Quaternion.identity, parent);
         if (boosterObj == null) return;
+
+        GameEventBus.RaiseBoosterCreated(boosterId);
 
         board.MidGrid[center.x, center.y] = boosterObj;
 

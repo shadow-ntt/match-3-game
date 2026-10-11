@@ -168,6 +168,8 @@ public class HandleInput : MonoBehaviour
             Vector3 posA = objA.transform.position;
             Vector3 posB = objB.transform.position;
 
+            GameEventBus.RaiseItemSwapped(false);
+
             var tweenA = objA.transform.DOMove(posB, swapDuration).SetEase(swapEase);
             var tweenB = objB.transform.DOMove(posA, swapDuration).SetEase(swapEase);
             await UniTask.WhenAll(tweenA.ToUniTask(), tweenB.ToUniTask());
@@ -229,6 +231,8 @@ public class HandleInput : MonoBehaviour
                 {
                     board.MidGrid[xA, yA] = objA;
                     board.MidGrid[xB, yB] = objB;
+
+                    GameEventBus.RaiseItemSwapped(true);
 
                     var backA = objA.transform.DOMove(posA, swapDuration).SetEase(swapEase);
                     var backB = objB.transform.DOMove(posB, swapDuration).SetEase(swapEase);

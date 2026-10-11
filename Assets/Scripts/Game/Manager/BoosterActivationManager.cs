@@ -72,6 +72,8 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
 
         if (combo == null) return false;
 
+        GameEventBus.RaiseBoosterComboActivated(boosterA.ItemId, boosterB.ItemId);
+
         // Lay danh sach cac o bi anh huong boi combo
         var affectedCells = combo.GetAffectedCells(board, cx, cy, boosterA.ItemId, boosterB.ItemId);
 
@@ -163,7 +165,11 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
 
         // Ghi nhan booster bi pha huy truoc khi xoa khoi ban co
         var bItem = booster as IBoardItem;
-        if (bItem != null) goalTracker.RegisterDestroyed((int)bItem.ItemId);
+        if (bItem != null)
+        {
+            goalTracker.RegisterDestroyed((int)bItem.ItemId);
+            GameEventBus.RaiseBoosterActivated(bItem.ItemId);
+        }
 
         scoreManager.AddScore(1, isObstacle: false, isByBooster: true);
 
@@ -211,7 +217,14 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         PlayExplodeParticle(overlayObj, fallbackToDefault: true);
         RemoveOverlayItem(cx, cy);
 
-        if (itemId > 0) goalTracker.RegisterDestroyed(itemId);
+        if (itemId > 0)
+        {
+            goalTracker.RegisterDestroyed(itemId);
+            if (BoardItemUtils.IsObstacle(itemId))
+            {
+                GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
+            }
+        }
         scoreManager.AddScore(1, isObstacle: true, isByBooster: true);
 
         return true;
@@ -234,7 +247,14 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         PlayParticleDefault(underObj.transform.position);
         RemoveUnderItem(cx, cy);
 
-        if (itemId > 0) goalTracker.RegisterDestroyed(itemId);
+        if (itemId > 0)
+        {
+            goalTracker.RegisterDestroyed(itemId);
+            if (BoardItemUtils.IsObstacle(itemId))
+            {
+                GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
+            }
+        }
         scoreManager.AddScore(1, isObstacle: true, isByBooster: true);
 
         return true;

@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2533beb2513d0344cb527700596c2e54, type: 3}
+  m_Name: AudioConfig
+  m_EditorClassIdentifier: Assembly-CSharp::AudioConfigSO
+  bgmMusic: {fileID: 11400000, guid: 1aa873b1aafa5384785611969e7f0e58, type: 2}
+  swapForward: {fileID: 11400000, guid: 405192c4b19dcde4e8385858932966d4, type: 2}
+  swapBackward: {fileID: 11400000, guid: e3d4bf098480b0746836df20c3921d9e, type: 2}
+  matchNormal: {fileID: 11400000, guid: a3e137c32138f2345ad539e59b9af610, type: 2}
+  matchExplode: {fileID: 11400000, guid: ee5c763d7807abe41965bc817b662097, type: 2}
+  scoreIncrease: {fileID: 11400000, guid: 605d89653ee31df4883acff9338d72b8, type: 2}
+  boosterCreated: {fileID: 11400000, guid: b4c8a263b4b2e3a4682a59d40f02ce28, type: 2}
+  rocketLaunch: {fileID: 11400000, guid: c7f6271451c7f9742891ac935b08907f, type: 2}
+  missileFly: {fileID: 11400000, guid: 55d1c2362d51bda4e8d617d51793332a, type: 2}
+  missileExplode: {fileID: 11400000, guid: a888b0697d31f474498b64bc71a862c1, type: 2}
+  tntFuse: {fileID: 11400000, guid: f1aca18ca60abdd47a14f29fb2ce219a, type: 2}
+  tntExplode: {fileID: 11400000, guid: 40d011bc514d3fc4c801d965412dea65, type: 2}
+  lightBallPower: {fileID: 11400000, guid: 881e1407619634749b2278594c7ee691, type: 2}
+  lightBallBeam: {fileID: 11400000, guid: 64b18f4c622034641b336e124ea38b70, type: 2}
+  boosterMerge: {fileID: 11400000, guid: 6b4ec075e23b2244cbf05a26c95e2000, type: 2}
+  megaExplode: {fileID: 11400000, guid: 710a99224be91fc46a16b00d90c8a1b3, type: 2}
+  stoneBreak: {fileID: 11400000, guid: 491cb2548aa531648b713e784a3424ca, type: 2}
+  bushBreak: {fileID: 11400000, guid: 4450ca4e67e4ff5428169df658541aa6, type: 2}
+  grassBreak: {fileID: 11400000, guid: 03be23e7c061fcb40890662674e3d556, type: 2}
+  mailBoxBreak: {fileID: 11400000, guid: 266b22c4c26711043be2e76d8c3c5ca5, type: 2}
+  levelWin: {fileID: 11400000, guid: 83a0ced743f819946ab1ef2a65e108e9, type: 2}
+  levelLose: {fileID: 11400000, guid: 4bcb07cd800c211429fbaad5d32d6e71, type: 2}
+  buttonClick: {fileID: 11400000, guid: 14e0ba683c0b4704e990bf1dd0fdb6aa, type: 2}
