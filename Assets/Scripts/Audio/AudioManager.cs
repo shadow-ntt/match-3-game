@@ -3,7 +3,7 @@ using UnityEngine.Audio;
 using Utils;
 
 // Quan ly am thanh tap trung, ket noi giua GameEventBus va AudioConfigSO (SingletonDontDestroy)
-public class AudioManager : SingletonDontDestroy<AudioManager>
+public class AudioManager : Singleton<AudioManager>
 {
     [Header("Cau Hinh Am Thanh (ScriptableObject)")]
     [SerializeField] private AudioConfigSO audioConfig;
@@ -25,10 +25,23 @@ public class AudioManager : SingletonDontDestroy<AudioManager>
 
     public AudioConfigSO AudioConfig => audioConfig;
 
+    // Trang thai am thanh hien tai
+    public bool IsBgmOn { get; private set; } = true;
+    public bool IsSfxOn { get; private set; } = true;
+
+    // Su kien thong bao thay doi trang thai am thanh
+    public static event System.Action<bool> OnBgmStateChanged;
+    public static event System.Action<bool> OnSfxStateChanged;
+
     protected override void Awake()
     {
         base.Awake();
         if (Instance != this) return;
+
+        // Doc trang thai am thanh tu PlayerData
+        PlayerData playerData = SaveManager.LoadPlayerData();
+        IsBgmOn = playerData.IsBgmOn;
+        IsSfxOn = playerData.IsSfxOn;
 
         InitSfxPool();
     }
@@ -47,8 +60,16 @@ public class AudioManager : SingletonDontDestroy<AudioManager>
         }
     }
 
+    private const string BgmVolumeParam = "BgmVolume";
+    private const string SfxVolumeParam = "SfxVolume";
+    private const float VolumeOnDb = 0f;
+    private const float VolumeOffDb = -80f;
+
     private void Start()
     {
+        ApplyMixerVolume(BgmVolumeParam, IsBgmOn);
+        ApplyMixerVolume(SfxVolumeParam, IsSfxOn);
+
         if (autoPlayBgmOnStart && audioConfig != null && audioConfig.BgmMusic != null)
         {
             PlayBGM();
@@ -94,7 +115,7 @@ public class AudioManager : SingletonDontDestroy<AudioManager>
     // Phat 1 AudioEventSO thong qua SFX pool
     public void PlayEvent(AudioEventSO audioEvent, float pitchMultiplier = 1f)
     {
-        if (audioEvent == null) return;
+        if (!IsSfxOn || audioEvent == null) return;
         AudioSource source = GetNextSfxSource();
         audioEvent.Play(source, pitchMultiplier);
     }
@@ -115,6 +136,53 @@ public class AudioManager : SingletonDontDestroy<AudioManager>
         {
             bgmSource.Stop();
         }
+    }
+
+    // ==========================================
+    // DIEU KHIEN BAT / TAT AM THANH QUA AUDIOMIXER
+    // ==========================================
+
+    private void ApplyMixerVolume(string paramName, bool isOn)
+    {
+        if (audioMixer != null)
+        {
+            audioMixer.SetFloat(paramName, isOn ? VolumeOnDb : VolumeOffDb);
+        }
+    }
+
+    public void TurnOnBgm() => SetBgm(true);
+    public void TurnOffBgm() => SetBgm(false);
+
+    public void SetBgm(bool isOn)
+    {
+        IsBgmOn = isOn;
+        ApplyMixerVolume(BgmVolumeParam, isOn);
+
+        if (bgmSource != null && isOn && !bgmSource.isPlaying && audioConfig != null && audioConfig.BgmMusic != null)
+        {
+            PlayBGM();
+        }
+
+        PlayerData playerData = SaveManager.LoadPlayerData();
+        playerData.IsBgmOn = isOn;
+        SaveManager.SavePlayerData(playerData);
+
+        OnBgmStateChanged?.Invoke(isOn);
+    }
+
+    public void TurnOnSfx() => SetSfx(true);
+    public void TurnOffSfx() => SetSfx(false);
+
+    public void SetSfx(bool isOn)
+    {
+        IsSfxOn = isOn;
+        ApplyMixerVolume(SfxVolumeParam, isOn);
+
+        PlayerData playerData = SaveManager.LoadPlayerData();
+        playerData.IsSfxOn = isOn;
+        SaveManager.SavePlayerData(playerData);
+
+        OnSfxStateChanged?.Invoke(isOn);
     }
 
     // ==========================================

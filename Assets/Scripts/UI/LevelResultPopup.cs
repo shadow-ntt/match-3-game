@@ -64,6 +64,16 @@ public class LevelResultPopup : MonoBehaviour
         {
             winScoreText.text = $"Score: {scoreManager.CurrentScore:N0}";
         }
+
+        // Luu tien do sang level tiep theo vao JSON qua SaveManager
+        int nextLevel = gameFlowController.LevelToLoad + 1;
+        PlayerData playerData = SaveManager.LoadPlayerData();
+        playerData.CurrentLevel = nextLevel;
+        if (nextLevel > playerData.HighestUnlockedLevel)
+        {
+            playerData.HighestUnlockedLevel = nextLevel;
+        }
+        SaveManager.SavePlayerData(playerData);
     }
 
     // Hien thi popup that bai

@@ -18,6 +18,15 @@ public class GameFlowController : Singleton<GameFlowController>
 
     public int LevelToLoad { get => levelToLoad; set => levelToLoad = value; }
 
+    protected override void Awake()
+    {
+        base.Awake();
+        if (Instance != this) return;
+
+        PlayerData playerData = SaveManager.LoadPlayerData();
+        levelToLoad = playerData.CurrentLevel;
+    }
+
     private void Start()
     {
         movesManager = MovesManager.Instance;
@@ -47,6 +56,7 @@ public class GameFlowController : Singleton<GameFlowController>
         {
             levelToLoad = level;
             board.LoadLevelData(levelToLoad);
+            board.DrawBoard();
         }
 
         LevelData levelData = board.LevelData;

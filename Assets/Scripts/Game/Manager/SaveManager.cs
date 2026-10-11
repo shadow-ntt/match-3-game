@@ -2,22 +2,22 @@ using System;
 using System.IO;
 using OdinSerializer;
 using UnityEngine;
-using Utils;
+#if UNITY_EDITOR
+using UnityEditor;
 
-public class SaveManager : SingletonDontDestroy<SaveManager>
+#endif
+
+// Quan ly luu va doc file JSON (LevelData & PlayerData) bang Odin Serializer
+public static class SaveManager
 {
-    // Đường dẫn lưu file: Assets/Data
-    public string DataFolderPath => Path.Combine(Application.dataPath, "Data");
+    // Duong dan thu muc luu file: Assets/Data
+    public static string DataFolderPath => Path.Combine(Application.dataPath, "Data");
 
-    protected override void Awake()
-    {
-        base.Awake();
-        if (Instance != this) return;
+    // Duong dan file luu tien do nguoi choi: Assets/Data/player_data.json
+    public static string PlayerDataFilePath => Path.Combine(DataFolderPath, "player_data.json");
 
-        EnsureDirectoryExists();
-    }
-
-    private void EnsureDirectoryExists()
+    // Dam bao thu muc Assets/Data ton tai
+    public static void EnsureDirectoryExists()
     {
         if (!Directory.Exists(DataFolderPath))
         {
@@ -25,12 +25,12 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
         }
     }
 
-    public string GetLevelFilePath(int levelNumber)
+    public static string GetLevelFilePath(int levelNumber)
     {
         return Path.Combine(DataFolderPath, $"level_{levelNumber}.json");
     }
 
-    public string GetLevelFilePath(string fileName)
+    public static string GetLevelFilePath(string fileName)
     {
         if (!fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
         {
@@ -40,21 +40,70 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
     }
 
     // ==========================================
-    // SAVE (LƯU LEVEL DATA THÀNH JSON BẰNG ODIN)
+    // PLAYER DATA (LƯU & ĐỌC TIẾN TRÌNH NGƯỜI CHƠI)
     // ==========================================
 
-    // Lưu LevelData thành file JSON tại Assets/Data/level_{levelNumber}.json bằng Odin Serializer
-    public bool SaveLevel(int levelNumber, LevelData levelData)
+    // Luu PlayerData thanh file JSON bang Odin Serializer
+    public static bool SavePlayerData(PlayerData data)
+    {
+        if (data == null) return false;
+
+        try
+        {
+            EnsureDirectoryExists();
+            byte[] bytes = OdinSerializer.SerializationUtility.SerializeValue(data, DataFormat.JSON);
+            File.WriteAllBytes(PlayerDataFilePath, bytes);
+#if UNITY_EDITOR
+            AssetDatabase.Refresh();
+#endif
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[SaveManager] Loi khi luu PlayerData: {ex.Message}");
+            return false;
+        }
+    }
+
+    // Load PlayerData tu JSON, neu chua ton tai thi tao moi va luu lai
+    public static PlayerData LoadPlayerData()
+    {
+        if (!File.Exists(PlayerDataFilePath))
+        {
+            PlayerData newPlayerData = new PlayerData();
+            SavePlayerData(newPlayerData);
+            return newPlayerData;
+        }
+
+        try
+        {
+            byte[] bytes = File.ReadAllBytes(PlayerDataFilePath);
+            PlayerData data = OdinSerializer.SerializationUtility.DeserializeValue<PlayerData>(bytes, DataFormat.JSON);
+            return data ?? new PlayerData();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[SaveManager] Loi khi load PlayerData: {ex.Message}");
+            return new PlayerData();
+        }
+    }
+
+    // ==========================================
+    // SAVE & LOAD LEVEL DATA
+    // ==========================================
+
+    // Luu LevelData thanh file JSON tai Assets/Data/level_{levelNumber}.json bang Odin Serializer
+    public static bool SaveLevel(int levelNumber, LevelData levelData)
     {
         return SaveLevel($"level_{levelNumber}", levelData);
     }
 
-    // Lưu LevelData thành file JSON tại Assets/Data/{fileName}.json bằng Odin Serializer
-    public bool SaveLevel(string fileName, LevelData levelData)
+    // Luu LevelData thanh file JSON tai Assets/Data/{fileName}.json bang Odin Serializer
+    public static bool SaveLevel(string fileName, LevelData levelData)
     {
         if (levelData == null)
         {
-            Debug.LogError($"[SaveManager] Không thể lưu LevelData null ({fileName})!");
+            Debug.LogError($"[SaveManager] Khong the luu LevelData null ({fileName})!");
             return false;
         }
 
@@ -62,92 +111,85 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
         {
             EnsureDirectoryExists();
             string filePath = GetLevelFilePath(fileName);
-
-            // Serialize ra byte array định dạng JSON bằng Odin
-            byte[] bytes = SerializationUtility.SerializeValue(levelData, DataFormat.JSON);
+            byte[] bytes = OdinSerializer.SerializationUtility.SerializeValue(levelData, DataFormat.JSON);
             File.WriteAllBytes(filePath, bytes);
-
 #if UNITY_EDITOR
-            UnityEditor.AssetDatabase.Refresh();
+            AssetDatabase.Refresh();
 #endif
-
-            Debug.Log($"[SaveManager] Đã lưu thành công tại: {filePath}");
             return true;
         }
         catch (Exception ex)
         {
-            Debug.LogError($"[SaveManager] Lỗi khi lưu file '{fileName}': {ex.Message}");
+            Debug.LogError($"[SaveManager] Loi khi luu file '{fileName}': {ex.Message}");
             return false;
         }
     }
 
-    // ==========================================
-    // LOAD (TẢI LEVEL DATA TỪ FILE JSON BẰNG ODIN)
-    // ==========================================
-
-    // Load LevelData từ file JSON tại Assets/Data/level_{levelNumber}.json bằng Odin Serializer
-    public LevelData LoadLevel(int levelNumber)
+    // Load LevelData tu file JSON tai Assets/Data/level_{levelNumber}.json bang Odin Serializer
+    public static LevelData LoadLevel(int levelNumber)
     {
         return LoadLevel($"level_{levelNumber}");
     }
 
-    // Load LevelData từ file JSON tại Assets/Data/{fileName}.json bằng Odin Serializer
-    public LevelData LoadLevel(string fileName)
+    // Load LevelData tu file JSON tai Assets/Data/{fileName}.json bang Odin Serializer
+    public static LevelData LoadLevel(string fileName)
     {
         string filePath = GetLevelFilePath(fileName);
-
         if (!File.Exists(filePath))
         {
-            Debug.LogWarning($"[SaveManager] Không tìm thấy file tại: {filePath}");
             return null;
         }
 
         try
         {
             byte[] bytes = File.ReadAllBytes(filePath);
-            LevelData data = SerializationUtility.DeserializeValue<LevelData>(bytes, DataFormat.JSON);
-            Debug.Log($"[SaveManager] Đã load thành công: {filePath}");
-            return data;
+            return OdinSerializer.SerializationUtility.DeserializeValue<LevelData>(bytes, DataFormat.JSON);
         }
         catch (Exception ex)
         {
-            Debug.LogError($"[SaveManager] Lỗi khi load file '{fileName}': {ex.Message}");
+            Debug.LogError($"[SaveManager] Loi khi load file '{fileName}': {ex.Message}");
             return null;
         }
     }
 
-    // Kiểm tra file level có tồn tại trong Assets/Data không
-    public bool HasLevel(int levelNumber)
+    // Kiem tra file level co ton tai trong Assets/Data khong
+    public static bool HasLevel(int levelNumber)
     {
         return File.Exists(GetLevelFilePath(levelNumber));
     }
 
-    // Xóa file level trong Assets/Data
-    public bool DeleteLevel(int levelNumber)
+    // Xoa file level trong Assets/Data
+    public static bool DeleteLevel(int levelNumber)
     {
         string filePath = GetLevelFilePath(levelNumber);
         if (File.Exists(filePath))
         {
             File.Delete(filePath);
 #if UNITY_EDITOR
-            UnityEditor.AssetDatabase.Refresh();
+            AssetDatabase.Refresh();
 #endif
-            Debug.Log($"[SaveManager] Đã xóa file: {filePath}");
             return true;
         }
         return false;
     }
 
+#if UNITY_EDITOR
     // ==========================================
-    // CONTEXT MENU TEST TRÊN INSPECTOR
+    // MENU TOOLS TEST TREN UNITY EDITOR
     // ==========================================
 
-    [ContextMenu("Test Save Demo Level 1")]
-    private void TestSaveDemoLevel1()
+    [MenuItem("Tools/Save/Reset Player Data (Level 1)")]
+    public static void ResetPlayerDataToLevel1()
+    {
+        SavePlayerData(new PlayerData(1));
+        Debug.Log("[SaveManager] Da reset PlayerData ve Level 1!");
+    }
+
+    [MenuItem("Tools/Save/Test Save Demo Level 1")]
+    public static void TestSaveDemoLevel1()
     {
         int rows = 8;
         int cols = 8;
-
         var board = new System.Collections.Generic.Dictionary<int, int[,]>();
         var mid = new System.Collections.Generic.Dictionary<int, int[,]>();
         var under = new System.Collections.Generic.Dictionary<int, int[,]>();
@@ -169,7 +211,6 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
             }
         }
 
-
         board[0] = boardGrid;
         mid[0] = midGrid;
         under[0] = underGrid;
@@ -185,14 +226,14 @@ public class SaveManager : SingletonDontDestroy<SaveManager>
         SaveLevel(1, demoData);
     }
 
-    [ContextMenu("Test Load Demo Level 1")]
-    private void TestLoadDemoLevel1()
+    [MenuItem("Tools/Save/Test Load Demo Level 1")]
+    public static void TestLoadDemoLevel1()
     {
         LevelData data = LoadLevel(1);
         if (data != null)
         {
-            Debug.Log($"[SaveManager] Test load thành công Level 1!");
-            Debug.Log($"Board Layers: {data.BoardLevel?.Count}, Mid Layers: {data.MidLayer?.Count}, Moves: {data.MovesLimit}, TargetScore: {data.TargetScore}, Goals: {data.Goals.Count}");
+            Debug.Log($"[SaveManager] Test load thanh cong Level 1! Goals: {data.Goals.Count}, Moves: {data.MovesLimit}");
         }
     }
+#endif
 }

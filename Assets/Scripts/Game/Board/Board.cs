@@ -66,16 +66,16 @@ public class Board : MonoBehaviour
         return IsInBounds(pos.x, pos.y);
     }
 
-    private SaveManager saveManager;
     private Pooltem pooltem;
 
     private void Awake()
     {
+        PlayerData playerData = SaveManager.LoadPlayerData();
+        levelNumber = playerData.CurrentLevel;
     }
 
     private void Start()
     {
-        saveManager = SaveManager.Instance;
         pooltem = Pooltem.Instance;
         LoadLevelData(levelNumber);
 
@@ -91,9 +91,7 @@ public class Board : MonoBehaviour
     public bool LoadLevelData(int level)
     {
         levelNumber = level;
-        if (saveManager == null) saveManager = SaveManager.Instance;
-
-        _levelData = saveManager.LoadLevel(levelNumber);
+        _levelData = SaveManager.LoadLevel(levelNumber);
         if (_levelData == null) return false;
 
         return true;
