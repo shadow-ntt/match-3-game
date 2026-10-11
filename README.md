@@ -132,11 +132,4 @@ Hỗ trợ tương tác đặc biệt khi hoán đổi 2 Booster vào nhau:
 
 ---
 
-## 3. Quy ước Lập trình Dự án (Coding Guidelines)
-- **Chỉ sử dụng comment dòng đơn `//`**: Tuyệt đối không dùng XML doc comment `///` hay block comment `/* */`.
-- **Hạn chế Debug log**: Không dùng `Debug.Log` / `Debug.LogWarning` bừa bãi khi không thực sự cần thiết.
-- **Awake lấy dữ liệu**: Dùng `Awake()` để lấy dữ liệu, tham chiếu (`GetComponent`, đọc file cấu hình, gán references).
-- **Start khởi tạo**: Dùng `Start()` để khởi tạo trạng thái runtime, khởi tạo các manager/checker và vẽ bàn cờ.
-- **Không kiểm tra null cho `[SerializeField]`**: Đã là `[SerializeField]` (được gán từ Inspector) thì không check null dư thừa.
-- **Hạn chế kiểm tra null không cần thiết**: Giữ luồng code gọn gàng, súc tích, tránh bọc điều kiện kiểm tra null tràn lan.
 

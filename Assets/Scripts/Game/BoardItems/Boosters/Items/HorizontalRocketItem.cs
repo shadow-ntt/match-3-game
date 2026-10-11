@@ -26,6 +26,8 @@ public class HorizontalRocketItem : BoosterItem
     public override async UniTask PlayActivationAnimationAsync()
     {
         await transform.DOScale(1.3f, 0.08f).SetLoops(2, LoopType.Yoyo).ToUniTask();
+        // Dam bao scale ve dung 1.0 sau animation
+        transform.localScale = Vector3.one;
     }
 
     public override async UniTask ExecuteActivationEffectAsync(BoosterActivationContext context)

@@ -44,6 +44,10 @@ public class VerticalRocketCombo : BoosterCombo
         var flashA = objA.transform.DOScale(1.8f, 0.08f).SetLoops(2, LoopType.Yoyo);
         var flashB = objB.transform.DOScale(1.8f, 0.08f).SetLoops(2, LoopType.Yoyo);
         await UniTask.WhenAll(flashA.ToUniTask(), flashB.ToUniTask());
+
+        // Khoi phuc scale mac dinh sau hoat anh merge tranh bi teo nho khi tra ve pool
+        if (objA != null) objA.transform.localScale = Vector3.one;
+        if (objB != null) objB.transform.localScale = Vector3.one;
     }
 
     public override async UniTask ExecuteEffectAsync(BoosterComboContext context)

@@ -51,6 +51,14 @@ public class LightBallBoosterCombo : BoosterCombo
 
         var flashLB = objLB.transform.DOScale(1.8f, 0.08f).SetLoops(2, LoopType.Yoyo);
         await flashLB.ToUniTask();
+
+        // Khoi phuc scale va rotation mac dinh tranh bi lech/bien dang khi tra ve pool
+        if (objOther != null) objOther.transform.localScale = Vector3.one;
+        if (objLB != null)
+        {
+            objLB.transform.localScale = Vector3.one;
+            objLB.transform.localRotation = Quaternion.identity;
+        }
     }
 
     public override async UniTask ExecuteEffectAsync(BoosterComboContext context)

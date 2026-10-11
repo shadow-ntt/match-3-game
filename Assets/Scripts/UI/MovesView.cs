@@ -15,6 +15,17 @@ public class MovesView : MonoBehaviour
     [SerializeField] private float warningPunchScale = 0.2f;
 
     private Tween punchTween;
+    private Vector3 originalLocalPos;
+    private bool hasOriginalPos;
+
+    private void Awake()
+    {
+        if (movesText != null)
+        {
+            originalLocalPos = movesText.transform.localPosition;
+            hasOriginalPos = true;
+        }
+    }
 
     private void OnEnable()
     {
@@ -25,6 +36,15 @@ public class MovesView : MonoBehaviour
     {
         GameEventBus.OnMovesChanged -= OnMovesChangedHandler;
         punchTween?.Kill();
+        // Khoi phuc scale va vi tri mac dinh phong truong hop dang punch/shake bi ngat dot ngot
+        if (movesText != null)
+        {
+            movesText.transform.localScale = Vector3.one;
+            if (hasOriginalPos)
+            {
+                movesText.transform.localPosition = originalLocalPos;
+            }
+        }
     }
 
     // Xu ly khi so luot di thay doi tu GameEventBus
@@ -33,7 +53,12 @@ public class MovesView : MonoBehaviour
         movesText.text = movesLeft.ToString();
 
         punchTween?.Kill();
+        // Reset scale va position ve chuan truoc khi phat hoat anh moi
         movesText.transform.localScale = Vector3.one;
+        if (hasOriginalPos)
+        {
+            movesText.transform.localPosition = originalLocalPos;
+        }
 
         if (movesLeft <= warningThreshold && movesLeft > 0)
         {
@@ -43,7 +68,9 @@ public class MovesView : MonoBehaviour
         else if (movesLeft == 0)
         {
             movesText.color = warningColor;
-            punchTween = movesText.transform.DOShakePosition(0.3f, 5f, 10, 90f);
+            punchTween = movesText.transform.DOShakePosition(0.3f, 5f, 10, 90f)
+                .OnKill(() => { if (movesText != null && hasOriginalPos) movesText.transform.localPosition = originalLocalPos; })
+                .OnComplete(() => { if (movesText != null && hasOriginalPos) movesText.transform.localPosition = originalLocalPos; });
         }
         else
         {

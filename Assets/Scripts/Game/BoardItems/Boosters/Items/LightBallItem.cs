@@ -23,8 +23,12 @@ public class LightBallItem : BoosterItem
     public override async UniTask PlayActivationAnimationAsync()
     {
         var scaleTween = transform.DOScale(1.35f, 0.12f).SetLoops(2, LoopType.Yoyo);
-        var rotTween = transform.DORotate(new Vector3(0, 0, 180f), 0.24f, RotateMode.FastBeyond360);
+        var rotTween = transform.DORotate(new Vector3(0, 0, 360f), 0.24f, RotateMode.FastBeyond360);
         await UniTask.WhenAll(scaleTween.ToUniTask(), rotTween.ToUniTask());
+
+        // Dam bao scale va rotation ve dung mac dinh sau hoat anh xoay va phong to
+        transform.localScale = Vector3.one;
+        transform.localRotation = Quaternion.identity;
     }
 
     public override async UniTask ExecuteActivationEffectAsync(BoosterActivationContext context)

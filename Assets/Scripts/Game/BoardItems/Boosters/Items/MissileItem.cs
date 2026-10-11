@@ -30,6 +30,8 @@ public class MissileItem : BoosterItem
     public override async UniTask PlayActivationAnimationAsync()
     {
         await transform.DOScale(1.25f, 0.1f).SetLoops(2, LoopType.Yoyo).ToUniTask();
+        // Dam bao scale ve dung 1.0 sau animation
+        transform.localScale = Vector3.one;
     }
 
     public override async UniTask ExecuteActivationEffectAsync(BoosterActivationContext context)

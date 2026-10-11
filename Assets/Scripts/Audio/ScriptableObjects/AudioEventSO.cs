@@ -17,8 +17,8 @@ public class AudioEventSO : ScriptableObject
     public float Volume => volume;
     public AudioMixerGroup MixerGroup => mixerGroup;
 
-    // Kiem tra cooldown de tranh phat lap am thanh qua nhieu lan trong 1 khung hinh
-    public bool CanPlay => Time.unscaledTime - lastPlayTime >= cooldown;
+    // Kiem tra cooldown de tranh phat lap am thanh qua nhieu lan trong 1 khung hinh (tu dong reset neu thoi gian bi quay lui khi restart)
+    public bool CanPlay => Time.unscaledTime < lastPlayTime || Time.unscaledTime - lastPlayTime >= cooldown;
 
     // Phat 1 clip ngau nhien voi volume va pitch ngau nhien qua AudioSource duoc chi dinh
     public void Play(AudioSource source, float pitchMultiplier = 1f)

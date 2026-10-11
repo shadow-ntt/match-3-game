@@ -15,6 +15,7 @@ public class GoalItemView : MonoBehaviour
     private int requiredAmount;
     private bool isCompleted;
     private Tween punchTween;
+    private Tween checkmarkTween;
 
     public int ItemId => itemId;
     public bool IsCompleted => isCompleted;
@@ -22,6 +23,10 @@ public class GoalItemView : MonoBehaviour
     private void OnDisable()
     {
         punchTween?.Kill();
+        checkmarkTween?.Kill();
+        // Reset scale ve mac dinh de tranh bi bien dang khi view bi disable
+        if (amountText != null) amountText.transform.localScale = Vector3.one;
+        if (checkmarkObj != null) checkmarkObj.transform.localScale = Vector3.one;
     }
 
     // Khoi tao muc tieu voi icon va so luong yeu cau
@@ -31,17 +36,25 @@ public class GoalItemView : MonoBehaviour
         requiredAmount = required;
         isCompleted = false;
 
+        punchTween?.Kill();
+        checkmarkTween?.Kill();
+
         if (icon != null)
         {
             iconImage.sprite = icon;
             iconImage.enabled = true;
         }
 
-        amountText.gameObject.SetActive(true);
-        amountText.text = required.ToString();
+        if (amountText != null)
+        {
+            amountText.gameObject.SetActive(true);
+            amountText.transform.localScale = Vector3.one;
+            amountText.text = required.ToString();
+        }
 
         if (checkmarkObj != null)
         {
+            checkmarkObj.transform.localScale = Vector3.one;
             checkmarkObj.SetActive(false);
         }
     }
@@ -65,9 +78,10 @@ public class GoalItemView : MonoBehaviour
 
             if (checkmarkObj != null)
             {
+                checkmarkTween?.Kill();
                 checkmarkObj.SetActive(true);
                 checkmarkObj.transform.localScale = Vector3.zero;
-                checkmarkObj.transform.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack);
+                checkmarkTween = checkmarkObj.transform.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack);
             }
         }
     }

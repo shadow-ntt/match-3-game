@@ -28,6 +28,10 @@ public class DefaultFallbackCombo : BoosterCombo
         var defA = objA.transform.DOScale(1.3f, 0.1f).SetLoops(2, LoopType.Yoyo);
         var defB = objB.transform.DOScale(1.3f, 0.1f).SetLoops(2, LoopType.Yoyo);
         await UniTask.WhenAll(defA.ToUniTask(), defB.ToUniTask());
+
+        // Khoi phuc scale mac dinh sau hoat anh merge
+        if (objA != null) objA.transform.localScale = Vector3.one;
+        if (objB != null) objB.transform.localScale = Vector3.one;
     }
 
     public override async UniTask ExecuteEffectAsync(BoosterComboContext context)

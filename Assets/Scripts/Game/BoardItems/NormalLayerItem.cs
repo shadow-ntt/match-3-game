@@ -1,3 +1,4 @@
+using DG.Tweening;
 using UnityEngine;
 
 public class NormalLayerItem : MonoBehaviour, IBoardItem
@@ -17,5 +18,8 @@ public class NormalLayerItem : MonoBehaviour, IBoardItem
     public virtual void OnDespawn()
     {
         // Hook called before returning to pool
+        transform.DOKill();
+        transform.localScale = Vector3.one;
+        transform.localRotation = Quaternion.identity;
     }
 }

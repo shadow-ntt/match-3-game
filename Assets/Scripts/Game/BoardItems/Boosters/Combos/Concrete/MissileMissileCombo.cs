@@ -36,6 +36,18 @@ public class MissileMissileCombo : BoosterCombo
         var scaleA = objA.transform.DOScale(1.3f, 0.08f).SetLoops(2, LoopType.Yoyo);
         var scaleB = objB.transform.DOScale(1.3f, 0.08f).SetLoops(2, LoopType.Yoyo);
         await UniTask.WhenAll(rotA.ToUniTask(), rotB.ToUniTask(), scaleA.ToUniTask(), scaleB.ToUniTask());
+
+        // Khoi phuc scale va rotation mac dinh cho 2 qua ten lua truoc khi xoa khoi ban co
+        if (objA != null)
+        {
+            objA.transform.localScale = Vector3.one;
+            objA.transform.localRotation = Quaternion.identity;
+        }
+        if (objB != null)
+        {
+            objB.transform.localScale = Vector3.one;
+            objB.transform.localRotation = Quaternion.identity;
+        }
     }
 
     public override async UniTask ExecuteEffectAsync(BoosterComboContext context)

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 using Utils;
 
@@ -128,6 +129,11 @@ public class Pooltem : Singleton<Pooltem>
             obj.transform.SetParent(parent, false);
         }
 
+        // Reset transform state de phong truong hop bi bien dang boi tween truoc do
+        obj.transform.DOKill();
+        obj.transform.localScale = Vector3.one;
+        obj.transform.localRotation = Quaternion.identity;
+
         objectToIdMap[obj] = id;
         activeItems.Add(obj);
         obj.SetActive(true);
@@ -157,6 +163,11 @@ public class Pooltem : Singleton<Pooltem>
     public void ReturnBoardItem(GameObject item)
     {
         if (item == null) return;
+
+        // Huy cac tween dang chay va reset transform ve gia tri mac dinh
+        item.transform.DOKill();
+        item.transform.localScale = Vector3.one;
+        item.transform.localRotation = Quaternion.identity;
 
         if (item.TryGetComponent<IBoardItem>(out var boardItem))
         {

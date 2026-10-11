@@ -57,6 +57,12 @@ public class TNTHorizontalRocketCombo : BoosterCombo
         var pulseA = objA.transform.DOScale(1.4f, 0.08f).SetLoops(2, LoopType.Yoyo);
         var pulseB = objB.transform.DOScale(1.4f, 0.08f).SetLoops(2, LoopType.Yoyo);
         await UniTask.WhenAll(pulseA.ToUniTask(), pulseB.ToUniTask());
+
+        // Dam bao khoi phuc scale va mau sac ban dau tranh bi meo hinh khi tra ve pool
+        if (objA != null) objA.transform.localScale = Vector3.one;
+        if (objB != null) objB.transform.localScale = Vector3.one;
+        if (srA != null) srA.color = Color.white;
+        if (srB != null) srB.color = Color.white;
     }
 
     public override async UniTask ExecuteEffectAsync(BoosterComboContext context)

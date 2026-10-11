@@ -47,6 +47,8 @@ public class LevelResultPopup : MonoBehaviour
     {
         GameEventBus.OnLevelComplete -= ShowWin;
         GameEventBus.OnLevelFailed -= ShowLose;
+        if (winPanel != null) winPanel.transform.DOKill();
+        if (losePanel != null) losePanel.transform.DOKill();
     }
 
     // Hien thi popup chien thang
@@ -54,6 +56,7 @@ public class LevelResultPopup : MonoBehaviour
     {
         HideAllPanels();
         winPanel.SetActive(true);
+        winPanel.transform.DOKill();
         winPanel.transform.localScale = Vector3.zero;
         winPanel.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack);
 
@@ -68,6 +71,7 @@ public class LevelResultPopup : MonoBehaviour
     {
         HideAllPanels();
         losePanel.SetActive(true);
+        losePanel.transform.DOKill();
         losePanel.transform.localScale = Vector3.zero;
         losePanel.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack);
     }
@@ -75,14 +79,25 @@ public class LevelResultPopup : MonoBehaviour
     // An tat ca cac panel
     public void HideAllPanels()
     {
-        if (winPanel != null) winPanel.SetActive(false);
-        if (losePanel != null) losePanel.SetActive(false);
+        // Huy cac tween phong to va reset scale ve mac dinh truoc khi an panel
+        if (winPanel != null)
+        {
+            winPanel.transform.DOKill();
+            winPanel.transform.localScale = Vector3.one;
+            winPanel.SetActive(false);
+        }
+        if (losePanel != null)
+        {
+            losePanel.transform.DOKill();
+            losePanel.transform.localScale = Vector3.one;
+            losePanel.SetActive(false);
+        }
     }
 
     // Xu ly click nut Next Level
     private void OnNextLevelClicked()
     {
-
+        GameEventBus.RaiseUIButtonClicked();
         HideAllPanels();
         if (gameFlowController != null)
         {
@@ -93,7 +108,7 @@ public class LevelResultPopup : MonoBehaviour
     // Xu ly click nut Cho lai (Retry)
     private void OnRetryClicked()
     {
-
+        GameEventBus.RaiseUIButtonClicked();
         HideAllPanels();
         if (gameFlowController != null)
         {

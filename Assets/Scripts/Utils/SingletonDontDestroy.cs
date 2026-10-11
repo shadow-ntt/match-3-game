@@ -12,10 +12,14 @@ namespace Utils
         protected virtual void Awake()
         {
             if (Instance == null)
+            {
                 Instance = this as T;
-            else
+                DontDestroyOnLoad(gameObject);
+            }
+            else if (Instance != this)
+            {
                 Destroy(gameObject);
-            DontDestroyOnLoad(gameObject);
+            }
         }
 
         protected virtual void OnDestroy()

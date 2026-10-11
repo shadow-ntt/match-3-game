@@ -27,6 +27,11 @@ public class ScoreView : MonoBehaviour
         GameEventBus.OnScoreChanged -= OnScoreChangedHandler;
         countTween?.Kill();
         punchTween?.Kill();
+        // Khoi phuc scale mac dinh phong truong hop bi kill tween giua chung
+        if (scoreText != null)
+        {
+            scoreText.transform.localScale = Vector3.one;
+        }
     }
 
     // Xu ly khi diem so thay doi tu GameEventBus
@@ -36,6 +41,9 @@ public class ScoreView : MonoBehaviour
         {
             displayedScore = 0;
             scoreText.text = "0";
+            punchTween?.Kill();
+            // Reset scale ve 1 khi reset diem so
+            scoreText.transform.localScale = Vector3.one;
             return;
         }
 

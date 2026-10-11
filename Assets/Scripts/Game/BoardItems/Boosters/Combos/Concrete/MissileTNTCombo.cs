@@ -56,6 +56,10 @@ public class MissileTNTCombo : BoosterCombo
 
         var impact = tntObj.transform.DOScale(1.4f, 0.06f).SetLoops(2, LoopType.Yoyo);
         await impact.ToUniTask();
+
+        // Khoi phuc scale ban dau cho TNT va missile sau va cham
+        if (missileObj != null) missileObj.transform.localScale = Vector3.one;
+        if (tntObj != null) tntObj.transform.localScale = Vector3.one;
     }
 
     public override async UniTask ExecuteEffectAsync(BoosterComboContext context)
