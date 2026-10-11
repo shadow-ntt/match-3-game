@@ -448,5 +448,45 @@
 
 ---
 
+### 2.24. Cập nhật Hiển thị Điểm số & Xử lý Chạm Ngưỡng Level (LevelResultPopup & GameFlowController)
+- **Hiển thị điểm số khi Kết thúc Màn chơi**:
+  - `LevelResultPopup.cs`: Bổ sung `loseScoreText` hiển thị số điểm đạt được khi người chơi thua màn chơi (`ShowLose`), đồng bộ cùng `winScoreText` khi chiến thắng (`ShowWin`).
+  - `MainScene.unity`: Tạo và wire GameObject `Score` (TextMeshProUGUI) riêng biệt trong cả 2 panel `winPanel` (`[GameCompletedUI]`) và `losePanel` (`[GameFailUI]`).
+- **Cơ chế Chạm Ngưỡng Level (Tự động kiểm tra file data)**:
+  - Khi người chơi hoàn thành màn chơi cuối cùng có trong dữ liệu (ví dụ data chỉ có 2 level và người chơi hoàn thành level 2):
+    - `ShowWin()`: Kiểm tra qua `SaveManager.HasLevel(nextLevel)`. Nếu không tồn tại file level kế tiếp, giữ nguyên `CurrentLevel` ở level hiện tại (không tăng sang level không tồn tại).
+    - `OnNextLevelClicked()`: Tương tự, nếu không có file level tiếp theo trong data thì tự động reload/chơi lại level hiện tại (level 2).
+  - `GameFlowController.cs`: Bổ sung kiểm tra an toàn trong `InitializeLevel(level)`. Nếu gọi level không có file trong `Assets/Data`, tự động fallback về level hiện tại thay vì bị lỗi `NullReferenceException`.
+
+---
+
+### 2.25. Phá hủy Vật cản ở Rìa khi Tạo Match Thành Công (Adjacent Obstacle Destruction)
+- **Cơ chế Phá hủy Chướng ngại vật Lân cận Cụm Match**:
+  - `CheckMatchManager.cs`:
+    - Bổ sung `ExplodeAdjacentObstacles(List<MatchData> matches)`: Thu thập tất cả các ô ngọc tham gia nổ trong đợt match và quét 4 hướng trực giao (Trên, Dưới, Trái, Phải) để tìm các ô ở rìa.
+    - Ứng dụng `HashSet<Vector2Int>` để loại bỏ trùng lặp và bỏ qua các ô chính nó đang match; đảm bảo mỗi ô vật cản chỉ nhận 1 hit trong một đợt nổ.
+    - Bổ sung `TryExplodeObstacleAt(x, y)` phá hủy vật cản theo thứ tự ưu tiên 3 tầng:
+      1. Tầng `OverlayGrid`: Phá hủy vật cản phủ trên (như Đá `Stone = 200`, Băng tuyết), giải phóng ngọc bên dưới hoặc mở ô trống cho ngọc rơi.
+      2. Tầng `MidGrid`: Phá hủy chướng ngại vật chiếm ô giữa nếu là vật cản (`BoardItemUtils.IsObstacle`).
+      3. Tầng `UnderGrid`: Phá hủy vật cản nền (Đất, Cỏ), miễn nhiễm cho ô điểm sinh `Spawn`.
+    - Tích hợp toàn diện hệ thống:
+      - **VFX**: Kích hoạt hạt nổ từ `PoolBlockBreakEffect.Play(worldPos, EnumItemColor.Red)`.
+      - **Audio**: Bắn sự kiện `GameEventBus.RaiseObstacleDestroyed(obstacleType)` kích hoạt âm thanh `StoneBreak` trong `AudioManager`.
+      - **Goal**: Cập nhật tiến độ mục tiêu màn chơi qua `goalTracker.RegisterDestroyed(itemId)`.
+      - **Score**: Cộng điểm chướng ngại vật qua `scoreManager.AddScore(1, isObstacle: true, isByBooster: false)`.
+    - Tích hợp trực tiếp vào `ExplodeMatches` cùng nhịp với nổ ngọc, cho phép `itemFallManager` lấp đầy các ô vừa được dọn sạch ở bước tiếp theo.
+  - `BoardItemUtils.cs`:
+    - Mở rộng `IsObstacle(IBoardItem)` hỗ trợ cả `OverLayerItem`.
+    - Bổ sung helper `HasObstacleAt(Board, x, y)` kiểm tra nhanh vật cản trên tất cả các layer của bàn cờ.
+---
+
+### 2.26. Xử lý Nút Next Level & Retry Reload Scene và Tăng Tiến Độ Màn Chơi
+- **Xử lý Nút Next Level & Retry (`LevelResultPopup.cs`)**:
+  - Nút **Next Level** và **Retry**: Phản hồi hoạt ảnh punch scale, dọn dẹp toàn bộ tween qua `DOTween.KillAll()` và reload scene hiện tại qua `SceneManager.LoadScene()`.
+  - Cơ chế tăng tiến độ: Đọc `currentLevel` và so sánh với `SaveManager.GetMaxLevel()`. Nếu người chơi vừa hoàn thành màn chơi và chưa chạm ngưỡng level tối đa thì tăng `currentLevel` lên 1 và mở khóa `highestUnlockedLevel`; nếu đã đạt max level thì giữ nguyên không cộng thêm.
+- **Nâng cấp `SaveManager.cs`**:
+  - Bổ sung `GetMaxLevel()` quét toàn bộ file `level_*.json` trong thư mục `Assets/Data` để tự động xác định level tối đa hiện có.
+- **Tối ưu Khởi tạo `Board.cs`**:
+  - Gọi `LoadLevelData(levelNumber)` ngay trong `Awake()` để đồng bộ sẵn sàng dữ liệu bàn cờ trước khi `GameFlowController` khởi chạy khi reload scene.
 
 

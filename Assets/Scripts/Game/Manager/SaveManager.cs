@@ -158,6 +158,38 @@ public static class SaveManager
         return File.Exists(GetLevelFilePath(levelNumber));
     }
 
+    // Lay so thu tu level lon nhat hien co trong Assets/Data
+    public static int GetMaxLevel()
+    {
+        EnsureDirectoryExists();
+        int maxLevel = 1;
+        try
+        {
+            string[] files = Directory.GetFiles(DataFolderPath, "level_*.json");
+            foreach (string file in files)
+            {
+                string fileName = Path.GetFileNameWithoutExtension(file);
+                if (fileName.StartsWith("level_", StringComparison.OrdinalIgnoreCase))
+                {
+                    string numPart = fileName.Substring(6);
+                    if (int.TryParse(numPart, out int lvl))
+                    {
+                        if (lvl > maxLevel)
+                        {
+                            maxLevel = lvl;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[SaveManager] Loi khi lay MaxLevel: {ex.Message}");
+        }
+
+        return maxLevel;
+    }
+
     // Xoa file level trong Assets/Data
     public static bool DeleteLevel(int levelNumber)
     {

@@ -122,7 +122,16 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         }
     }
 
-    // No tat ca cac cum match (Normal Match va Special Match)
+    // 4 huong truc giao (Tren, Duoi, Trai, Phai) de tim cac o vat can o ria cum match
+    private static readonly Vector2Int[] AdjacentDirections = new Vector2Int[]
+    {
+        Vector2Int.up,
+        Vector2Int.down,
+        Vector2Int.left,
+        Vector2Int.right
+    };
+
+    // No tat ca cac cum match (Normal Match va Special Match) va pha huy vat can o ria
     private void ExplodeMatches(List<MatchData> matches, int cascadeStep)
     {
         for (int i = 0; i < matches.Count; i++)
@@ -137,6 +146,181 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 HandleSpecialMatch(match);
             }
         }
+
+        // Pha huy cac vat can o ria cua tat ca cac cum match
+        ExplodeAdjacentObstacles(matches);
+    }
+
+    // Pha huy cac vat can o ria (4 huong truc giao) cua tat ca cac cum match
+    private void ExplodeAdjacentObstacles(List<MatchData> matches)
+    {
+        if (matches == null || matches.Count == 0 || board == null) return;
+
+        // 1. Thu thap tat ca cac toa do cua toan bo cac vien ngoc tham gia match trong dot nay
+        var matchedPositions = new HashSet<Vector2Int>();
+        for (int i = 0; i < matches.Count; i++)
+        {
+            var match = matches[i];
+            if (match.Matches == null) continue;
+            for (int j = 0; j < match.Matches.Count; j++)
+            {
+                matchedPositions.Add(match.Matches[j]);
+            }
+        }
+
+        // 2. Thu thap tat ca cac toa do o ria duy nhat (khong trung lap)
+        var adjacentPositions = new HashSet<Vector2Int>();
+        foreach (var pos in matchedPositions)
+        {
+            for (int d = 0; d < AdjacentDirections.Length; d++)
+            {
+                Vector2Int neighbor = pos + AdjacentDirections[d];
+                // Bo qua neu ngoai ban co hoac chinh la mot o trong cum match
+                if (!board.IsInBounds(neighbor.x, neighbor.y)) continue;
+                if (matchedPositions.Contains(neighbor)) continue;
+
+                adjacentPositions.Add(neighbor);
+            }
+        }
+
+        // 3. Kiem tra va pha huy vat can tai tung toa do ria
+        foreach (var pos in adjacentPositions)
+        {
+            TryExplodeObstacleAt(pos.x, pos.y);
+        }
+    }
+
+    // Kiem tra va pha huy vat can tai o (x, y) theo thu tu uu tien 4 layer
+    private bool TryExplodeObstacleAt(int x, int y)
+    {
+        if (!board.IsInBounds(x, y)) return false;
+
+        // 1. TANG OVERLAY: Uu tien hang dau pha huy vat can tren OverlayGrid (da, bang tuyet, xich...)
+        if (TryExplodeOverlay(x, y)) return true;
+
+        // 2. TANG MID: Pha huy vat can tren MidGrid neu la obstacle (vi du: hom go, da giua ban co)
+        if (TryExplodeMidObstacle(x, y)) return true;
+
+        // 3. TANG UNDER: Pha huy vat can tren UnderGrid (ngoai tru Spawner)
+        if (TryExplodeUnder(x, y)) return true;
+
+        return false;
+    }
+
+    // Pha huy vat can tang OverlayGrid tai o (x, y)
+    private bool TryExplodeOverlay(int x, int y)
+    {
+        if (board.OverlayGrid == null) return false;
+        GameObject overlayObj = board.OverlayGrid[x, y];
+        if (overlayObj == null) return false;
+
+        int itemId = overlayObj.TryGetComponent<IBoardItem>(out var it) ? (int)it.ItemId : (int)EnumItemBoard.Blank;
+
+        Vector3 worldPos = overlayObj.transform.position;
+        if (poolParticle != null)
+        {
+            poolParticle.Play(worldPos, EnumItemColor.Red);
+        }
+
+        board.RemoveOverlayItem(x, y);
+
+        if (itemId > 0)
+        {
+            if (goalTracker != null)
+            {
+                goalTracker.RegisterDestroyed(itemId);
+            }
+            if (BoardItemUtils.IsObstacle(itemId))
+            {
+                GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
+            }
+        }
+
+        if (scoreManager != null)
+        {
+            scoreManager.AddScore(1, isObstacle: true, isByBooster: false);
+        }
+
+        return true;
+    }
+
+    // Pha huy vat can tang MidGrid tai o (x, y) neu la obstacle
+    private bool TryExplodeMidObstacle(int x, int y)
+    {
+        if (board.MidGrid == null) return false;
+        GameObject midObj = board.MidGrid[x, y];
+        if (midObj == null) return false;
+
+        if (!BoardItemUtils.IsObstacle(midObj)) return false;
+
+        int itemId = midObj.TryGetComponent<IBoardItem>(out var it) ? (int)it.ItemId : (int)EnumItemBoard.Blank;
+
+        Vector3 worldPos = midObj.transform.position;
+        if (poolParticle != null)
+        {
+            poolParticle.Play(worldPos, EnumItemColor.Red);
+        }
+
+        board.RemoveMidItem(x, y);
+
+        if (itemId > 0)
+        {
+            if (goalTracker != null)
+            {
+                goalTracker.RegisterDestroyed(itemId);
+            }
+            GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
+        }
+
+        if (scoreManager != null)
+        {
+            scoreManager.AddScore(1, isObstacle: true, isByBooster: false);
+        }
+
+        return true;
+    }
+
+    // Pha huy vat can tang UnderGrid tai o (x, y) neu khong phai Spawner
+    private bool TryExplodeUnder(int x, int y)
+    {
+        if (board.UnderGrid == null) return false;
+        GameObject underObj = board.UnderGrid[x, y];
+        if (underObj == null) return false;
+
+        // Spawner khong the bi pha huy
+        if (underObj.TryGetComponent<IBoardItem>(out var underItem) && underItem.ItemId == EnumItemBoard.Spawn)
+        {
+            return false;
+        }
+
+        int itemId = underItem != null ? (int)underItem.ItemId : (int)EnumItemBoard.Blank;
+
+        Vector3 worldPos = underObj.transform.position;
+        if (poolParticle != null)
+        {
+            poolParticle.Play(worldPos, EnumItemColor.Red);
+        }
+
+        board.RemoveUnderItem(x, y);
+
+        if (itemId > 0)
+        {
+            if (goalTracker != null)
+            {
+                goalTracker.RegisterDestroyed(itemId);
+            }
+            if (BoardItemUtils.IsObstacle(itemId))
+            {
+                GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
+            }
+        }
+
+        if (scoreManager != null)
+        {
+            scoreManager.AddScore(1, isObstacle: true, isByBooster: false);
+        }
+
+        return true;
     }
 
     // Xu ly Normal Match: phat particle no cho cac gem va xoa khoi grid

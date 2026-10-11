@@ -54,12 +54,24 @@ public class GameFlowController : Singleton<GameFlowController>
     {
         if (level > 0)
         {
+            if (!SaveManager.HasLevel(level))
+            {
+                Debug.LogWarning($"[GameFlowController] Level {level} khong ton tai trong Assets/Data! Giu nguyen level hien tai: {levelToLoad}");
+                level = levelToLoad;
+            }
+
             levelToLoad = level;
             board.LoadLevelData(levelToLoad);
             board.DrawBoard();
         }
 
         LevelData levelData = board.LevelData;
+        if (levelData == null)
+        {
+            board.LoadLevelData(levelToLoad);
+            levelData = board.LevelData;
+        }
+
         movesManager.Initialize(levelData.MovesLimit);
         goalTracker.Initialize(levelData.Goals);
         scoreManager.ResetScore();

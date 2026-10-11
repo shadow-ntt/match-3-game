@@ -72,12 +72,16 @@ public class Board : MonoBehaviour
     {
         PlayerData playerData = SaveManager.LoadPlayerData();
         levelNumber = playerData.CurrentLevel;
+        LoadLevelData(levelNumber);
     }
 
     private void Start()
     {
         pooltem = Pooltem.Instance;
-        LoadLevelData(levelNumber);
+        if (_levelData == null)
+        {
+            LoadLevelData(levelNumber);
+        }
 
         if (autoLoadOnStart)
         {

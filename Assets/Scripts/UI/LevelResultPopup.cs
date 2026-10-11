@@ -1,6 +1,7 @@
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 // Popup thong bao Thang hoac Thua khi ket thuc man choi
@@ -14,6 +15,7 @@ public class LevelResultPopup : MonoBehaviour
     [Header("Popup That Bai")]
     [SerializeField] private GameObject losePanel;
     [SerializeField] private Button retryButton;
+    [SerializeField] private TextMeshProUGUI loseScoreText;
 
     // Singleton Fields khoi tao tai Start
     private ScoreManager scoreManager;
@@ -35,6 +37,19 @@ public class LevelResultPopup : MonoBehaviour
         }
 
         HideAllPanels();
+    }
+
+    private void OnDestroy()
+    {
+        if (nextLevelButton != null)
+        {
+            nextLevelButton.onClick.RemoveListener(OnNextLevelClicked);
+        }
+
+        if (retryButton != null)
+        {
+            retryButton.onClick.RemoveListener(OnRetryClicked);
+        }
     }
 
     private void OnEnable()
@@ -65,9 +80,17 @@ public class LevelResultPopup : MonoBehaviour
             winScoreText.text = $"Score: {scoreManager.CurrentScore:N0}";
         }
 
-        // Luu tien do sang level tiep theo vao JSON qua SaveManager
-        int nextLevel = gameFlowController.LevelToLoad + 1;
+        // Khi nguoi choi vua hoan thanh man choi: tang currentLevel len 1 (neu max roi thi khong cong nua)
         PlayerData playerData = SaveManager.LoadPlayerData();
+        int maxLevel = SaveManager.GetMaxLevel();
+        int playingLevel = (gameFlowController != null) ? gameFlowController.LevelToLoad : playerData.CurrentLevel;
+
+        int nextLevel = playingLevel;
+        if (playingLevel < maxLevel)
+        {
+            nextLevel = playingLevel + 1;
+        }
+
         playerData.CurrentLevel = nextLevel;
         if (nextLevel > playerData.HighestUnlockedLevel)
         {
@@ -84,6 +107,10 @@ public class LevelResultPopup : MonoBehaviour
         losePanel.transform.DOKill();
         losePanel.transform.localScale = Vector3.zero;
         losePanel.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack);
+        if (loseScoreText != null && scoreManager != null)
+        {
+            loseScoreText.text = $"Score: {scoreManager.CurrentScore:N0}";
+        }
     }
 
     // An tat ca cac panel
@@ -104,25 +131,54 @@ public class LevelResultPopup : MonoBehaviour
         }
     }
 
-    // Xu ly click nut Next Level
+    // Xu ly click nut Next Level -> Reload lai scene
     private void OnNextLevelClicked()
     {
         GameEventBus.RaiseUIButtonClicked();
-        HideAllPanels();
-        if (gameFlowController != null)
+        if (nextLevelButton != null)
         {
-            gameFlowController.InitializeLevel(gameFlowController.LevelToLoad + 1);
+            nextLevelButton.interactable = false;
+            nextLevelButton.transform.DOKill();
+            nextLevelButton.transform.localScale = Vector3.one;
+            nextLevelButton.transform.DOPunchScale(Vector3.one * 0.1f, 0.15f, 10, 1f)
+                .OnComplete(ReloadScene);
+        }
+        else
+        {
+            ReloadScene();
         }
     }
 
-    // Xu ly click nut Cho lai (Retry)
+    // Xu ly click nut Choi lai (Retry) -> Reload lai scene
     private void OnRetryClicked()
     {
         GameEventBus.RaiseUIButtonClicked();
-        HideAllPanels();
-        if (gameFlowController != null)
+        if (retryButton != null)
         {
-            gameFlowController.InitializeLevel(gameFlowController.LevelToLoad);
+            retryButton.interactable = false;
+            retryButton.transform.DOKill();
+            retryButton.transform.localScale = Vector3.one;
+            retryButton.transform.DOPunchScale(Vector3.one * 0.1f, 0.15f, 10, 1f)
+                .OnComplete(ReloadScene);
+        }
+        else
+        {
+            ReloadScene();
+        }
+    }
+
+    // Reload lai active scene
+    private void ReloadScene()
+    {
+        DOTween.KillAll();
+        string currentScene = SceneManager.GetActiveScene().name;
+        if (!string.IsNullOrEmpty(currentScene))
+        {
+            SceneManager.LoadScene(currentScene);
+        }
+        else
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
     }
 }

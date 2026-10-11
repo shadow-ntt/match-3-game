@@ -99,7 +99,7 @@ namespace Utils
             return item == null || item.ItemId == EnumItemBoard.Blank;
         }
 
-        // Kiểm tra vật cản (Ground: 200 hoặc vật cản tầng 3 Under)
+        // Kiểm tra vật cản (Ground: 200 hoặc vật cản tầng Under / Overlay)
         public static bool IsObstacle(int id)
         {
             return id == (int)EnumItemBoard.Stone;
@@ -112,7 +112,7 @@ namespace Utils
 
         public static bool IsObstacle(IBoardItem item)
         {
-            return item != null && (item.ItemId == EnumItemBoard.Stone || item is UnderLayerItem);
+            return item != null && (item.ItemId == EnumItemBoard.Stone || item is UnderLayerItem || item is OverLayerItem);
         }
 
         public static bool IsObstacle(GameObject obj)
@@ -121,6 +121,26 @@ namespace Utils
             if (obj.TryGetComponent<IBoardItem>(out var item))
             {
                 return IsObstacle(item);
+            }
+            return false;
+        }
+
+        // Kiểm tra tọa độ (x, y) có chứa vật cản ở bất kỳ layer nào không
+        public static bool HasObstacleAt(Board board, int x, int y)
+        {
+            if (board == null || !board.IsInBounds(x, y)) return false;
+            if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return true;
+            if (board.UnderGrid != null && board.UnderGrid[x, y] != null)
+            {
+                var underObj = board.UnderGrid[x, y];
+                if (underObj != null && (!underObj.TryGetComponent<IBoardItem>(out var underItem) || underItem.ItemId != EnumItemBoard.Spawn))
+                {
+                    return true;
+                }
+            }
+            if (board.MidGrid != null && board.MidGrid[x, y] != null)
+            {
+                return IsObstacle(board.MidGrid[x, y]);
             }
             return false;
         }
