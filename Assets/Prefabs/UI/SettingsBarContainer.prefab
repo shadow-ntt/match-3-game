@@ -405,6 +405,7 @@ GameObject:
   - component: {fileID: 3774456506487270077}
   - component: {fileID: 8017003453119805905}
   - component: {fileID: 1338066830486914140}
+  - component: {fileID: 6291845102938471029}
   m_Layer: 0
   m_Name: Button_Exit
   m_TagString: Untagged
@@ -538,6 +539,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7750125345f39f644bb689a947edaf54, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIButtonAudio
+--- !u!114 &6291845102938471029
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4149805475092080876}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82c5f17d23a14e9ab4e9f78310c8d19a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonExit
+  button: {fileID: 3774456506487270077}
+  exitAction: 0
+  menuSceneName: StartScene
+  punchScaleDuration: 0.2
 --- !u!1 &4312452937303801004
 GameObject:
   m_ObjectHideFlags: 0

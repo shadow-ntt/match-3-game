@@ -438,6 +438,10 @@
     - Khi bấm mở (`Open`): Nút chính xoay icon 180° (`DORotate`), 3 nút con (BGM, SFX, Exit) trượt ngang từ phải sang trái (`DOAnchorPosX`) cùng hàng Y với độ trễ so le (stagger), phóng to (`DOScale` OutBack) và hiện rõ `DOFade`.
     - Khi bấm đóng (`Close`): 3 nút con trượt ngược từ trái về phải thu về vị trí nút chính (`Ease.InBack`), nút chính xoay về 0°.
     - Cờ `isAnimating` chống click spam làm lỗi animation state.
+  - `ButtonExit.cs`:
+    - Component gắn trên nút Exit (`Button_Exit`) trong thanh cài đặt `SettingsBarContainer`.
+    - Hỗ trợ chế độ thoát linh hoạt (`Auto`: từ `MainScene` chuyển về `StartScene`, từ `StartScene` gọi `Application.Quit()`).
+    - Hoạt ảnh nảy nhẹ `DOPunchScale`, phát âm thanh click qua `GameEventBus.RaiseUIButtonClicked()`, và dọn dẹp `GameEventBus.ClearAllEvents()`, `DOTween.KillAll()` trước khi chuyển scene.
   - `SettingsMenuSetupTool.cs` (`Assets/Scripts/UI/Editor/SettingsMenuSetupTool.cs`):
     - Công cụ Editor 1-click tại menu `Tools > UI > Tao Settings Expand Bar Trong Scene`: Tự động tìm Canvas, tạo toàn bộ GameObject, nạp sprite và wire references hoàn chỉnh.
     - Tích hợp trực tiếp vào `StartSceneSetupTool.cs` để tự động đính kèm vào `StartScene.unity`.
