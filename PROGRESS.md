@@ -487,6 +487,22 @@
 - **Nâng cấp `SaveManager.cs`**:
   - Bổ sung `GetMaxLevel()` quét toàn bộ file `level_*.json` trong thư mục `Assets/Data` để tự động xác định level tối đa hiện có.
 - **Tối ưu Khởi tạo `Board.cs`**:
-  - Gọi `LoadLevelData(levelNumber)` ngay trong `Awake()` để đồng bộ sẵn sàng dữ liệu bàn cờ trước khi `GameFlowController` khởi chạy khi reload scene.
+  - Gọi `LoadLevelData(levelNumber)` ngay trong `Awake()` để đồng bộ sẵn sàng dữ liệu bàn cờ trước khi `GameFlowController` khởi chạy khi reload scene.---
 
-
+### 2.27. Kiến Trúc Hướng Đối Tượng Board Items, Xử Lý Tiêu Hủy Tập Trung & Chướng Ngại Vật Cỏ (Grass)
+- **Chuẩn hóa OOP & Interfaces cho Board Items**:
+  - `IDestructible.cs`: Định nghĩa khả năng nhận sát thương (`TakeDamageAsync`), kiểm tra máu và tự hủy cho mọi item có thể bị phá hủy.
+  - `IMatchable.cs`: Định nghĩa viên ngọc có màu sắc tham gia vào cơ chế Match-3.
+  - `ISwappable.cs`: Xác định item có thể hoán đổi với item lân cận.
+  - `BoardItemBase.cs`: Lớp cơ sở trừu tượng chuẩn hóa vị trí, tọa độ grid và hiển thị.
+  - `MatchItem.cs` & `ObstacleItem.cs`: Tách biệt hoàn toàn giữa ngọc thường và chướng ngại vật đa tầng.
+- **Tiêu hủy Tập trung (`ItemDestructionHandler.cs`)**:
+  - Gom toàn bộ logic phá hủy item trên bàn cờ về một nơi: trừ máu, giải phóng ô cờ qua `Board.ClearGridItem()`, phát VFX qua `PoolBlockBreakEffect`, phát sự kiện `GameEventBus.RaiseItemDestroyed()`.
+  - Giảm thiểu hơn 245 dòng code trùng lặp giữa `CheckMatchManager` và `BoosterActivationManager`.
+- **Chướng ngại vật Cỏ (Grass - UnderLayer Obstacle)**:
+  - Bổ sung `Grass.prefab`, `Grass.asset` trong `UnderLayer` và `EnumItemBoard.Grass = 201`.
+  - Tự động tiêu hủy Cỏ khi viên ngọc đè bên trên nổ hoặc khi Booster quét qua.
+- **Tách biệt Enums Độc lập**:
+  - Quy hoạch các enum dùng chung vào `Assets/Scripts/Enum/`: `AudioTargetType.cs`, `EnumBoardLayer.cs`, `ExitAction.cs`, `ExpandDirection.cs`.
+- **Kiểm soát Spawn Khi Kết thúc Màn chơi (`SpawnItemFromSky.cs`)**:
+  - Lắng nghe `OnLevelComplete` và `OnLevelFailed` để chặn sinh ngọc mới rơi xuống khi màn chơi đã kết thúc (`_canSpawn = false`), reset lại khi bắt đầu màn mới.

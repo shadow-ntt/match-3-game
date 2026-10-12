@@ -105,4 +105,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8454fa9ee5adfae4f846a93162139d47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MissileItem
-  itemId: 304
+  itemId: 404

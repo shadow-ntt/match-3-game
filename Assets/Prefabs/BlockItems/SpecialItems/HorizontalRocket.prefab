@@ -105,4 +105,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df8180e495fc484439a6eaf2b88ca877, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HorizontalRocketItem
-  itemId: 301
+  itemId: 401

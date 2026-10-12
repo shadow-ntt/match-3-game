@@ -1,25 +1,4 @@
-using DG.Tweening;
-using UnityEngine;
-
-public class NormalLayerItem : MonoBehaviour, IBoardItem
+// Lop dai dien cho cac item tren tang Normal/Mid Grid tren ban co (ke thua MatchItem)
+public class NormalLayerItem : MatchItem
 {
-    [SerializeField] private EnumItemBoard itemId;
-    public EnumItemBoard ItemId
-    {
-        get => itemId;
-        set => itemId = value;
-    }
-
-    public virtual void OnSpawn()
-    {
-        // Hook called when retrieved from pool
-    }
-
-    public virtual void OnDespawn()
-    {
-        // Hook called before returning to pool
-        transform.DOKill();
-        transform.localScale = Vector3.one;
-        transform.localRotation = Quaternion.identity;
-    }
 }

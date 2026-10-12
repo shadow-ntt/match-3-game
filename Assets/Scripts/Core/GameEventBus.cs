@@ -42,6 +42,9 @@ public static class GameEventBus
     // Su kien pha huy chuong ngai vat (Stone, Bush, Grass...): (obstacleType)
     public static event Action<EnumItemBoard> OnObstacleDestroyed;
 
+    // Su kien mot item tren ban co bi tieu diet: (itemId, isObstacle, isByBooster)
+    public static event Action<EnumItemBoard, bool, bool> OnItemDestroyed;
+
     // Su kien click nut UI
     public static event Action OnUIButtonClicked;
 
@@ -71,6 +74,8 @@ public static class GameEventBus
 
     public static void RaiseObstacleDestroyed(EnumItemBoard obstacleType) => OnObstacleDestroyed?.Invoke(obstacleType);
 
+    public static void RaiseItemDestroyed(EnumItemBoard itemId, bool isObstacle, bool isByBooster) => OnItemDestroyed?.Invoke(itemId, isObstacle, isByBooster);
+
     public static void RaiseUIButtonClicked() => OnUIButtonClicked?.Invoke();
 
     // Xoa toan bo subscriber de tranh ro ri bo nho khi load/restart scene
@@ -89,6 +94,7 @@ public static class GameEventBus
         OnBoosterActivated = null;
         OnBoosterComboActivated = null;
         OnObstacleDestroyed = null;
+        OnItemDestroyed = null;
         OnUIButtonClicked = null;
     }
 }

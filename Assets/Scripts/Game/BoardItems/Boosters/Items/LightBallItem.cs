@@ -12,7 +12,7 @@ public class LightBallItem : BoosterItem
     // Neu nguoi choi chu dong vuot LightBall (depth == 0) ma swapTarget khong hop le thi huy
     public override bool CanActivate(int depth, IBoardItem swapTarget = null)
     {
-        if (depth == 0 && (swapTarget == null || !BoardItemUtils.IsValidNormalItem(swapTarget)))
+        if (depth == 0 && (swapTarget == null || !(swapTarget is IMatchable matchable && matchable.CanMatch)))
         {
             return false;
         }
@@ -46,7 +46,7 @@ public class LightBallItem : BoosterItem
         var cells = new List<Vector2Int>();
         if (board == null || board.MidGrid == null) return cells;
 
-        if (swapTarget != null && BoardItemUtils.IsValidNormalItem(swapTarget))
+        if (swapTarget is IMatchable swapMatchable && swapMatchable.CanMatch)
         {
             _targetColor = swapTarget.ItemId;
         }
@@ -65,7 +65,7 @@ public class LightBallItem : BoosterItem
                 if (col == x && row == y) continue;
                 var obj = board.MidGrid[col, row];
                 if (obj == null) continue;
-                if (obj.TryGetComponent<IBoardItem>(out var item) && item.ItemId == _targetColor)
+                if (obj.TryGetComponent<IMatchable>(out var matchable) && matchable.ColorId == _targetColor)
                 {
                     cells.Add(new Vector2Int(col, row));
                 }
@@ -85,11 +85,12 @@ public class LightBallItem : BoosterItem
             {
                 var obj = board.MidGrid[col, row];
                 if (obj == null) continue;
-                if (obj.TryGetComponent<IBoardItem>(out var item) && BoardItemUtils.IsValidNormalItem(item))
+                if (obj.TryGetComponent<IMatchable>(out var matchable) && matchable.CanMatch)
                 {
-                    if (!colors.Contains(item.ItemId))
+                    var colorId = (EnumItemBoard)matchable.ColorId;
+                    if (!colors.Contains(colorId))
                     {
-                        colors.Add(item.ItemId);
+                        colors.Add(colorId);
                     }
                 }
             }

@@ -21,9 +21,11 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
     };
 
     private bool _isSpawning;
+    private bool _canSpawn = true;
 
     public Board Board => board;
     public bool IsSpawning => _isSpawning;
+    public bool CanSpawn => _canSpawn;
     public List<EnumItemBoard> AllowedColors => allowedColors;
 
     private Pooltem pooltem;
@@ -33,15 +35,41 @@ public class SpawnItemFromSky : Singleton<SpawnItemFromSky>
         base.Awake();
     }
 
+    private void OnEnable()
+    {
+        GameEventBus.OnLevelComplete += OnGameEndedHandler;
+        GameEventBus.OnLevelFailed += OnGameEndedHandler;
+        GameEventBus.OnGoalsReset += OnGoalsResetHandler;
+    }
+
+    private void OnDisable()
+    {
+        GameEventBus.OnLevelComplete -= OnGameEndedHandler;
+        GameEventBus.OnLevelFailed -= OnGameEndedHandler;
+        GameEventBus.OnGoalsReset -= OnGoalsResetHandler;
+    }
+
     private void Start()
     {
         pooltem = Pooltem.Instance;
     }
 
+    // Chan spawn khi man choi ket thuc (Chien thang hoac That bai)
+    private void OnGameEndedHandler()
+    {
+        _canSpawn = false;
+    }
+
+    // Cho phep spawn lai khi reset man choi hoac sang man moi
+    private void OnGoalsResetHandler()
+    {
+        _canSpawn = true;
+    }
+
     // Quét các ô trống trên bàn cờ và sinh ngọc mới (chỉ rơi thẳng) bất đồng bộ bằng UniTask
     public async UniTask<bool> SpawnFromSkyAsync()
     {
-        if (_isSpawning || board == null || board.MidGrid == null || board.BoardCellGrid == null)
+        if (!_canSpawn || _isSpawning || board == null || board.MidGrid == null || board.BoardCellGrid == null)
         {
             return false;
         }

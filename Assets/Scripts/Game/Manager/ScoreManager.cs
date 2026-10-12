@@ -20,6 +20,21 @@ public class ScoreManager : Singleton<ScoreManager>
     public int ComboLevel => _comboLevel;
     public float CurrentMultiplier => Mathf.Min(1f + _comboLevel * cascadeMultiplierStep, maxMultiplier);
 
+    private void OnEnable()
+    {
+        GameEventBus.OnItemDestroyed += HandleItemDestroyed;
+    }
+
+    private void OnDisable()
+    {
+        GameEventBus.OnItemDestroyed -= HandleItemDestroyed;
+    }
+
+    private void HandleItemDestroyed(EnumItemBoard itemId, bool isObstacle, bool isByBooster)
+    {
+        AddScore(1, isObstacle: isObstacle, isByBooster: isByBooster);
+    }
+
     // Khoi tao lai diem so ve 0
     public void ResetScore()
     {

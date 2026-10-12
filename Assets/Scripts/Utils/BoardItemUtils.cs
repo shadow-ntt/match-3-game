@@ -41,7 +41,7 @@ namespace Utils
 
         public static bool IsValidNormalItem(IBoardItem item)
         {
-            return item != null && IsValidNormalItem(item.ItemId);
+            return item is IMatchable matchable && matchable.CanMatch;
         }
 
         // Kiem tra item co phai la Booster khong (301-305)
@@ -57,7 +57,7 @@ namespace Utils
 
         public static bool IsBoosterItem(IBoardItem item)
         {
-            return item != null && IsBoosterItem(item.ItemId);
+            return item is IBoosterActivatable;
         }
 
         // Kiem tra item co thuoc tang Mid Layer khong (Normal Item: 102..108 hoac Booster: 301..305)
@@ -73,7 +73,7 @@ namespace Utils
 
         public static bool IsMidLayer(IBoardItem item)
         {
-            return item != null && IsMidLayer(item.ItemId);
+            return item != null && (item is IMatchable || item is IBoosterActivatable || IsMidLayer(item.ItemId));
         }
 
         // Kiểm tra item tầng Under hợp lệ
@@ -99,66 +99,65 @@ namespace Utils
             return item == null || item.ItemId == EnumItemBoard.Blank;
         }
 
-        // Kiểm tra vật cản (Ground: 200 hoặc vật cản tầng Under / Overlay)
+        // Kiểm tra vật cản (Stone: 301 hoặc vật cản tầng Overlay/Obstacle: 300..399)
         public static bool IsObstacle(int id)
         {
-            return id == (int)EnumItemBoard.Stone;
+            return id == (int)EnumItemBoard.Stone || (id >= 300 && id < 400);
         }
 
         public static bool IsObstacle(EnumItemBoard itemBoard)
         {
-            return itemBoard == EnumItemBoard.Stone;
+            return IsObstacle((int)itemBoard);
+        }
+
+        // Kiểm tra item thuộc tầng UnderLayer (Grass: 201...)
+        public static bool IsUnderLayerItem(int id)
+        {
+            return id == (int)EnumItemBoard.Grass || (id >= 200 && id < 300);
+        }
+
+        public static bool IsUnderLayerItem(IBoardItem item)
+        {
+            return item is UnderLayerItem;
+        }
+
+        public static bool IsUnderLayerItem(GameObject obj)
+        {
+            return obj != null && obj.TryGetComponent<UnderLayerItem>(out _);
         }
 
         public static bool IsObstacle(IBoardItem item)
         {
-            return item != null && (item.ItemId == EnumItemBoard.Stone || item is UnderLayerItem || item is OverLayerItem);
+            return item is ObstacleItem;
         }
 
         public static bool IsObstacle(GameObject obj)
         {
-            if (obj == null) return false;
-            if (obj.TryGetComponent<IBoardItem>(out var item))
-            {
-                return IsObstacle(item);
-            }
-            return false;
+            return obj != null && obj.TryGetComponent<ObstacleItem>(out _);
         }
 
         // Kiểm tra tọa độ (x, y) có chứa vật cản ở bất kỳ layer nào không
         public static bool HasObstacleAt(Board board, int x, int y)
         {
             if (board == null || !board.IsInBounds(x, y)) return false;
-            if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return true;
-            if (board.UnderGrid != null && board.UnderGrid[x, y] != null)
-            {
-                var underObj = board.UnderGrid[x, y];
-                if (underObj != null && (!underObj.TryGetComponent<IBoardItem>(out var underItem) || underItem.ItemId != EnumItemBoard.Spawn))
-                {
-                    return true;
-                }
-            }
-            if (board.MidGrid != null && board.MidGrid[x, y] != null)
-            {
-                return IsObstacle(board.MidGrid[x, y]);
-            }
+            if (board.OverlayGrid != null && IsObstacle(board.OverlayGrid[x, y])) return true;
+            if (board.UnderGrid != null && IsObstacle(board.UnderGrid[x, y])) return true;
+            if (board.MidGrid != null && IsObstacle(board.MidGrid[x, y])) return true;
             return false;
         }
 
-        // Kiem tra item co du dieu kien hoan doi (khong phai Blank, khong phai vat can va thuoc tang Mid Layer)
+        // Kiem tra item co du dieu kien hoan doi (qua interface ISwappable)
         public static bool CanSwap(IBoardItem item)
         {
-            return item != null && !IsBlank(item) && !IsObstacle(item) && IsMidLayer(item);
+            return item is ISwappable swappable && swappable.CanSwap;
         }
 
-        // Kiem tra 2 item co du dieu kien hoan doi cho nhau khong (deu hop le va khac ItemId, hoac deu la Booster)
+        // Kiem tra 2 item co du dieu kien hoan doi cho nhau khong
         public static bool CanSwap(IBoardItem itemA, IBoardItem itemB)
         {
-            if (IsBoosterItem(itemA) && IsBoosterItem(itemB))
-            {
-                return CanSwap(itemA) && CanSwap(itemB);
-            }
-            return CanSwap(itemA) && CanSwap(itemB) && itemA.ItemId != itemB.ItemId;
+            if (!CanSwap(itemA) || !CanSwap(itemB)) return false;
+            if (itemA is IBoosterActivatable && itemB is IBoosterActivatable) return true;
+            return itemA.ItemId != itemB.ItemId;
         }
 
         public static bool CanSwap(int id)
@@ -192,9 +191,10 @@ namespace Utils
         // Kiểm tra ô (x, y) có phải là điểm sinh (Spawn) không
         public static bool IsSpawnerCell(this Board board, int x, int y)
         {
-            if (board == null || !board.IsInBounds(x, y) || board.BoardCellGrid == null) return false;
-            GameObject cellObj = board.BoardCellGrid[x, y];
-            return cellObj != null && cellObj.TryGetComponent<IBoardItem>(out var item) && item.ItemId == EnumItemBoard.Spawn;
+            if (board == null || !board.IsInBounds(x, y)) return false;
+            if (board.UnderGrid != null && board.UnderGrid[x, y] != null && board.UnderGrid[x, y].TryGetComponent<SpawnItem>(out _)) return true;
+            if (board.BoardCellGrid != null && board.BoardCellGrid[x, y] != null && board.BoardCellGrid[x, y].TryGetComponent<SpawnItem>(out _)) return true;
+            return false;
         }
 
         // Kiểm tra ô (x, y) có hợp lệ, đang trống và sẵn sàng nhận ngọc rơi hoặc sinh từ trên trời không
@@ -209,8 +209,8 @@ namespace Utils
             // Tầng 4 (Overlay): Nếu có vật cản che phủ (băng, xích...) thì không thể lấp vào
             if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return false;
 
-            // Tầng 3 (Under): Nếu có vật cản tầng dưới (hộp gỗ, đá...) thì không thể lấp vào
-            if (board.UnderGrid != null && board.UnderGrid[x, y] != null) return false;
+            // Tầng 3 (Under): Nếu ô chứa vật cản chặn đường thì không thể lấp vào (UnderLayerItem như cỏ không chặn)
+            if (board.UnderGrid != null && IsObstacle(board.UnderGrid[x, y])) return false;
 
             // Tầng 2 (Mid): Nếu ô đã có item thì không thể lấp vào
             if (board.MidGrid != null && board.MidGrid[x, y] != null) return false;

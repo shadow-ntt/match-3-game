@@ -5,14 +5,6 @@ using UnityEngine.UI;
 // Thanh cai dat bung nganh/doc: 1 nut chinh mo cac nut con voi huong va khoang cach tuy bien
 public class ExpandableSettingsBar : MonoBehaviour
 {
-    public enum ExpandDirection
-    {
-        Left,   // Bung sang trai (Right to Left - dung goc duoi phai)
-        Up,     // Bung len tren (Bottom to Top)
-        Right,  // Bung sang phai (Left to Right)
-        Down    // Bung xuong duoi (Top to Bottom)
-    }
-
     [System.Serializable]
     public class SubButtonEntry
     {

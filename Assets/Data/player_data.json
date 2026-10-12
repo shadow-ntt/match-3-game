@@ -1,8 +1,8 @@
 {
     "$id": 0,
     "$type": "0|PlayerData, Assembly-CSharp",
-    "currentLevel": 1,
-    "highestUnlockedLevel": 1,
+    "currentLevel": 3,
+    "highestUnlockedLevel": 3,
     "isBgmOn": true,
     "isSfxOn": true
 }

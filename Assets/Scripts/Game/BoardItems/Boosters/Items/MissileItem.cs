@@ -57,29 +57,7 @@ public class MissileItem : BoosterItem
             {
                 if (col == originX && row == originY) continue;
 
-                bool isTarget = false;
-                if (board.OverlayGrid != null && board.OverlayGrid[col, row] != null)
-                {
-                    isTarget = true;
-                }
-                else if (board.UnderGrid != null && board.UnderGrid[col, row] != null)
-                {
-                    var underObj = board.UnderGrid[col, row];
-                    if (underObj != null && (!underObj.TryGetComponent<IBoardItem>(out var underItem) || underItem.ItemId != EnumItemBoard.Spawn))
-                    {
-                        isTarget = true;
-                    }
-                }
-                else
-                {
-                    var obj = board.MidGrid[col, row];
-                    if (obj != null && obj.TryGetComponent<IBoardItem>(out var item) && !BoardItemUtils.IsMidLayer(item))
-                    {
-                        isTarget = true;
-                    }
-                }
-
-                if (isTarget)
+                if (BoardItemUtils.HasObstacleAt(board, col, row))
                 {
                     float dist = Vector2Int.Distance(origin, new Vector2Int(col, row));
                     if (dist < minDistance)

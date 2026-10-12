@@ -6,13 +6,6 @@ using UnityEngine.UI;
 // Xu ly su kien click nut Exit (Tro ve StartScene hoac thoat game)
 public class ButtonExit : MonoBehaviour
 {
-    public enum ExitAction
-    {
-        Auto,             // Tu dong: MainScene -> StartScene, StartScene -> Thoat game
-        LoadScene,        // Chuyen sang scene chi dinh
-        QuitApplication   // Thoat ung dung
-    }
-
     [Header("Tham chieu UI")]
     [SerializeField] private Button button;
 

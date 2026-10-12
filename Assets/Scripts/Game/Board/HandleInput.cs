@@ -177,8 +177,8 @@ public class HandleInput : MonoBehaviour
             var itemA = objA.GetComponent<IBoardItem>();
             var itemB = objB.GetComponent<IBoardItem>();
 
-            bool isBoosterA = BoardItemUtils.IsBoosterItem(itemA);
-            bool isBoosterB = BoardItemUtils.IsBoosterItem(itemB);
+            bool isBoosterA = itemA is IBoosterActivatable;
+            bool isBoosterB = itemB is IBoosterActivatable;
             bool activated = false;
 
             // Kich hoat Booster neu co booster tham gia
@@ -208,7 +208,7 @@ public class HandleInput : MonoBehaviour
 
                 // Kiem tra cascade xem cac ngoc roi xuong co tao match moi khong
                 bool hasMatch = await checkMatchManager.CheckMatch();
-                if (!hasMatch)
+                if (!hasMatch && spawnItemFromSky.CanSpawn)
                 {
                     // Neu chua tao match, sinh ngoc moi tu tren troi roi xuong de lap day ban co
                     await spawnItemFromSky.SpawnFromSkyAsync();

@@ -57,22 +57,9 @@ public class ItemFallManager : Singleton<ItemFallManager>
     // Kiểm tra tọa độ (x, y) có phải là vật cản hoặc ngoài bàn cờ không
     public bool IsObstacle(int x, int y)
     {
-        if (board == null) return true;
-        if (!board.IsInBounds(x, y)) return true;
-        if (board.BoardCellGrid[x, y] == null) return true;
-        if (board.OverlayGrid != null && board.OverlayGrid[x, y] != null) return true;
-        if (board.UnderGrid != null && board.UnderGrid[x, y] != null) return true;
-
-        GameObject midObj = board.MidGrid[x, y];
-        if (midObj != null && midObj.TryGetComponent<IBoardItem>(out var item))
-        {
-            if (!BoardItemUtils.IsMidLayer(item))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        if (board == null || !board.IsInBounds(x, y)) return true;
+        if (board.BoardCellGrid == null || board.BoardCellGrid[x, y] == null) return true;
+        return BoardItemUtils.HasObstacleAt(board, x, y);
     }
 
     // Kiểm tra đường thẳng phía trên ô (targetX, targetY) có bị chặn bởi vật cản không
@@ -117,22 +104,30 @@ public class ItemFallManager : Singleton<ItemFallManager>
         return targetY;
     }
 
-    // Kiểm tra ngọc tại (x, y) có thể trượt chéo sang hướng dx không
+    // Kiểm tra ngọc tại (x, y) có thể trượt chéo sang hướng dx (dx = -1 hoặc 1) không
     private bool CanFallDiagonal(int x, int y, int dx)
     {
         int nx = x + dx;
         int ny = y - 1;
         if (!board.IsInBounds(nx, ny)) return false;
 
-        // Nếu thuộc tầng 3 (UnderGrid) thì mới cho phép rơi chéo
-        if (board.OverlayGrid == null) return false;
+        // Ô bên dưới viên ngọc (x, y - 1) PHẢI BỊ CHẶN (ngoài biên bàn cờ hoặc là vật cản)
+        // Nếu ô bên dưới trống hoặc là ngọc bình thường đã đứng vững, ngọc ở (x, y) không được trượt chéo
+        // bool isBelowBlocked = (y - 1 < 0) || IsObstacle(x, y - 1);
+        // if (!isBelowBlocked) return false;
 
-        bool isUnderDx = board.IsInBounds(nx, y) && board.OverlayGrid[nx, y] != null;
-        bool isUnderBelow = board.IsInBounds(x, y - 1) && board.OverlayGrid[x, y - 1] != null;
+        // Ô góc bên cạnh (nx, y)  LÀ VẬT CẢN 
+        if (!IsObstacle(nx, y)) return false;
 
-        if (!isUnderDx && !isUnderBelow) return false;
+        // Ô đích (nx, ny) phải đang trống và sẵn sàng nhận ngọc
+        if (!IsCellEmptyAndAvailable(nx, ny)) return false;
 
-        return IsCellEmptyAndAvailable(nx, ny);
+        // Ô đích (nx, ny) phải là ô BỊ CHẶN RƠI THẲNG TỪ TRÊN XUỐNG
+        // Nếu cột nx thông suốt từ trên xuống (có thể nhận ngọc rơi thẳng từ Spawner hoặc ngọc trên rơi xuống),
+        // thì cột nx sẽ tự lấp đầy, không để ngọc từ cột x trượt chéo sang cướp ô
+        if (!IsBlockedFromFallingStraight(nx, ny)) return false;
+
+        return true;
     }
 
     // Trả về (destX, destY) ô đích chéo hợp lệ thấp nhất ((-1, -1) nếu không thể rơi chéo)
@@ -170,24 +165,28 @@ public class ItemFallManager : Singleton<ItemFallManager>
         return (destX, destY);
     }
 
-    // Thực hiện 1 lượt rơi (Phase 1: rơi thẳng, Phase 2: rơi chéo)
+    // Thực hiện 1 lượt rơi (Ưu tiên rơi thẳng trước, khi không còn ô rơi thẳng mới xét rơi chéo)
     private async UniTask<bool> StepFallAsync()
     {
-        var tasks = new List<UniTask>();
-
-
         // Phase 1: Ưu tiên tất cả các ô có thể rơi thẳng trước
-        CollectStraightFalls(tasks);
-        // Phase 2: Kiểm tra rơi chéo cho các viên chưa thể rơi thẳng
-        CollectDiagonalFalls(tasks);
-
-        if (tasks.Count == 0)
+        var straightTasks = new List<UniTask>();
+        CollectStraightFalls(straightTasks);
+        if (straightTasks.Count > 0)
         {
-            return false;
+            await UniTask.WhenAll(straightTasks);
+            return true;
         }
 
-        await UniTask.WhenAll(tasks);
-        return true;
+        // Phase 2: Kiểm tra rơi chéo cho các viên chưa thể rơi thẳng
+        var diagonalTasks = new List<UniTask>();
+        CollectDiagonalFalls(diagonalTasks);
+        if (diagonalTasks.Count > 0)
+        {
+            await UniTask.WhenAll(diagonalTasks);
+            return true;
+        }
+
+        return false;
     }
 
     // Thu thập các task rơi thẳng trong lượt

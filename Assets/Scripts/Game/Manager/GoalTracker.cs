@@ -21,6 +21,28 @@ public class GoalTracker : Singleton<GoalTracker>
     public bool IsAllCompleted => _isAllGoalsCompleted;
     public Dictionary<int, GoalProgress> GoalsProgress => _goalsProgress;
 
+    private void OnEnable()
+    {
+        GameEventBus.OnItemDestroyed += HandleItemDestroyed;
+    }
+
+    private void OnDisable()
+    {
+        GameEventBus.OnItemDestroyed -= HandleItemDestroyed;
+    }
+
+    private void HandleItemDestroyed(EnumItemBoard itemId, bool isObstacle, bool isByBooster)
+    {
+        if ((int)itemId > 0)
+        {
+            RegisterDestroyed((int)itemId, 1);
+            if (isObstacle)
+            {
+                GameEventBus.RaiseObstacleDestroyed(itemId);
+            }
+        }
+    }
+
     // Khoi tao danh sach muc tieu tu LevelData
     public void Initialize(List<GoalEntry> goals)
     {

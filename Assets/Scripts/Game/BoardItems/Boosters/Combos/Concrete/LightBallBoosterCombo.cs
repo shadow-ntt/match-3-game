@@ -120,9 +120,8 @@ public class LightBallBoosterCombo : BoosterCombo
             GameObject obj = board.MidGrid[pos.x, pos.y];
             if (obj == null) continue;
 
-            if (obj.TryGetComponent<IBoardItem>(out var item) && BoardItemUtils.IsBoosterItem(item))
+            if (obj.TryGetComponent<IBoosterActivatable>(out _))
             {
-
                 activationTasks.Add(manager.ActivateBoosterInternalAsync(pos.x, pos.y, null, visited, 1));
             }
         }
@@ -140,14 +139,14 @@ public class LightBallBoosterCombo : BoosterCombo
         GameObject existing = board.MidGrid[x, y];
         if (existing == null) return null;
 
-        if (!existing.TryGetComponent<IBoardItem>(out var item) || !BoardItemUtils.IsValidNormalItem(item))
+        if (!existing.TryGetComponent<IMatchable>(out var matchable) || !matchable.CanMatch)
         {
             return null;
         }
 
         if (manager != null && manager.PoolParticle != null)
         {
-            manager.PoolParticle.Play(existing.transform.position, item.ItemId);
+            manager.PoolParticle.Play(existing.transform.position, matchable.ColorId);
         }
 
         Vector3 worldPos = GridUtils.GridToWorld(board.Grid, x, y);

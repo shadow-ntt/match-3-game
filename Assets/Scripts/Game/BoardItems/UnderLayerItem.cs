@@ -1,21 +1,58 @@
+using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using UnityEngine;
 
-public class UnderLayerItem : MonoBehaviour, IBoardItem
+// Lop dai dien cho cac item tren tang Under Grid (Grass, nen duoi - khong phai ObstacleItem)
+public class UnderLayerItem : BoardItemBase, IDestructible
 {
-    [SerializeField] private EnumItemBoard itemId;
-    public EnumItemBoard ItemId
+    [SerializeField] private int maxHp = 1;
+    private int currentHp;
+    private PoolBlockBreakEffect poolParticle;
+
+    public int CurrentHp => currentHp;
+    public int MaxHp => maxHp;
+    public bool IsDestroyed => currentHp <= 0;
+
+    protected virtual void Awake()
     {
-        get => itemId;
-        set => itemId = value;
+        currentHp = maxHp > 0 ? maxHp : 1;
     }
 
-    public virtual void OnSpawn()
+    protected virtual void Start()
     {
-        // Hook called when retrieved from pool
+        poolParticle = PoolBlockBreakEffect.Instance;
     }
 
-    public virtual void OnDespawn()
+    public override void OnSpawn()
     {
-        // Hook called before returning to pool
+        base.OnSpawn();
+        currentHp = maxHp > 0 ? maxHp : 1;
+    }
+
+    public override void OnDespawn()
+    {
+        base.OnDespawn();
+        currentHp = maxHp > 0 ? maxHp : 1;
+    }
+
+    // Nhan sat thuong, rung nhe neu con song
+    public virtual async UniTask<bool> TakeDamageAsync(int damage = 1)
+    {
+        currentHp -= damage;
+        if (currentHp > 0)
+        {
+            await transform.DOShakePosition(0.12f, 0.08f, 15).ToUniTask();
+        }
+        return IsDestroyed;
+    }
+
+    // Phat hoat anh bien mat va hat VFX
+    public virtual async UniTask PlayDestroyEffectAsync()
+    {
+        if (poolParticle != null)
+        {
+            poolParticle.Play(transform.position, itemId);
+        }
+        await transform.DOScale(Vector3.zero, 0.1f).SetEase(Ease.InBack).ToUniTask();
     }
 }

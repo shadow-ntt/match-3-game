@@ -49,7 +49,10 @@ public static class BoosterComboGridUtils
         {
             for (int row = 0; row < board.Height; row++)
             {
-                if (board.MidGrid[col, row] != null || (board.OverlayGrid != null && board.OverlayGrid[col, row] != null))
+                bool hasMid = board.MidGrid[col, row] != null;
+                bool hasOverlay = board.OverlayGrid != null && board.OverlayGrid[col, row] != null;
+                bool hasUnder = board.UnderGrid != null && board.UnderGrid[col, row] != null && !board.IsSpawnerCell(col, row);
+                if (hasMid || hasOverlay || hasUnder)
                 {
                     result.Add(new Vector2Int(col, row));
                 }
@@ -67,7 +70,7 @@ public static class BoosterComboGridUtils
             {
                 var obj = board.MidGrid[col, row];
                 if (obj == null) continue;
-                if (obj.TryGetComponent<IBoardItem>(out var item) && item.ItemId == color)
+                if (obj.TryGetComponent<IMatchable>(out var matchable) && matchable.ColorId == color)
                 {
                     result.Add(new Vector2Int(col, row));
                 }
@@ -87,15 +90,16 @@ public static class BoosterComboGridUtils
             {
                 var obj = board.MidGrid[col, row];
                 if (obj == null) continue;
-                if (obj.TryGetComponent<IBoardItem>(out var item) && BoardItemUtils.IsValidNormalItem(item))
+                if (obj.TryGetComponent<IMatchable>(out var matchable) && matchable.CanMatch)
                 {
-                    if (colorCounts.TryGetValue(item.ItemId, out int count))
+                    var color = (EnumItemBoard)matchable.ColorId;
+                    if (colorCounts.TryGetValue(color, out int count))
                     {
-                        colorCounts[item.ItemId] = count + 1;
+                        colorCounts[color] = count + 1;
                     }
                     else
                     {
-                        colorCounts[item.ItemId] = 1;
+                        colorCounts[color] = 1;
                     }
                 }
             }
@@ -133,11 +137,12 @@ public static class BoosterComboGridUtils
             {
                 var obj = board.MidGrid[col, row];
                 if (obj == null) continue;
-                if (obj.TryGetComponent<IBoardItem>(out var item) && BoardItemUtils.IsValidNormalItem(item))
+                if (obj.TryGetComponent<IMatchable>(out var matchable) && matchable.CanMatch)
                 {
-                    if (!existingColors.Contains(item.ItemId))
+                    var color = (EnumItemBoard)matchable.ColorId;
+                    if (!existingColors.Contains(color))
                     {
-                        existingColors.Add(item.ItemId);
+                        existingColors.Add(color);
                     }
                 }
             }
@@ -166,12 +171,12 @@ public static class BoosterComboGridUtils
         }
     }
 
-    // Tim danh sach N muc tieu dac biet
+    // Tim danh sach N muc tieu dac biet (uu tien vat can o bat ky layer nao)
     public static void FindSpecialTargets(Board board, int count, List<Vector2Int> outList, HashSet<Vector2Int> exclude)
     {
         if (board == null || outList == null) return;
 
-        // 1. Uu tien vat can o OverlayGrid hoac UnderGrid
+        // 1. Uu tien vat can o bat ky layer nao qua BoardItemUtils.HasObstacleAt
         for (int col = 0; col < board.Width; col++)
         {
             for (int row = 0; row < board.Height; row++)
@@ -180,21 +185,7 @@ public static class BoosterComboGridUtils
                 if (exclude != null && exclude.Contains(pos)) continue;
                 if (outList.Contains(pos)) continue;
 
-                bool isObstacle = false;
-                if (board.OverlayGrid != null && board.OverlayGrid[col, row] != null)
-                {
-                    isObstacle = true;
-                }
-                else if (board.UnderGrid != null && board.UnderGrid[col, row] != null)
-                {
-                    var underObj = board.UnderGrid[col, row];
-                    if (underObj != null && (!underObj.TryGetComponent<IBoardItem>(out var underItem) || underItem.ItemId != EnumItemBoard.Spawn))
-                    {
-                        isObstacle = true;
-                    }
-                }
-
-                if (isObstacle)
+                if (BoardItemUtils.HasObstacleAt(board, col, row))
                 {
                     outList.Add(pos);
                     if (outList.Count >= count) return;
@@ -202,28 +193,7 @@ public static class BoosterComboGridUtils
             }
         }
 
-        // 2. Tim vat can tren MidGrid
-        for (int col = 0; col < board.Width; col++)
-        {
-            for (int row = 0; row < board.Height; row++)
-            {
-                var pos = new Vector2Int(col, row);
-                if (exclude != null && exclude.Contains(pos)) continue;
-                if (outList.Contains(pos)) continue;
-
-                var obj = board.MidGrid[col, row];
-                if (obj == null) continue;
-                if (!obj.TryGetComponent<IBoardItem>(out var item)) continue;
-
-                if (!BoardItemUtils.IsMidLayer(item))
-                {
-                    outList.Add(pos);
-                    if (outList.Count >= count) return;
-                }
-            }
-        }
-
-        // 3. Neu van chua du, lay ngau nhien gem thuong tren ban co
+        // 2. Neu van chua du, lay ngau nhien gem thuong tren ban co
         var randomCandidates = new List<Vector2Int>();
         for (int col = 0; col < board.Width; col++)
         {

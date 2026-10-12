@@ -105,4 +105,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 52dd63ee9e9c6d642ae0c5d3e7bd0cdf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TNTItem
-  itemId: 303
+  itemId: 403
+  spriteRenderer: {fileID: 714366217775018659}

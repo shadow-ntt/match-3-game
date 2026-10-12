@@ -190,113 +190,10 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         return true;
     }
 
-    // Pha huy va xoa item tai 1 o tren ban co (Ho tro pha huy vat can OverlayGrid, UnderGrid va MidGrid)
+    // Pha huy va xoa item tai 1 o tren ban co (qua ItemDestructionHandler tap trung)
     public void ExplodeAndRemoveCell(int cx, int cy)
     {
-        if (!board.IsInBounds(cx, cy)) return;
-
-        // 1. Uu tien pha huy vat can tren OverlayGrid (da, bang tuyet, day xich...) neu co
-        if (TryExplodeOverlay(cx, cy)) return;
-
-        // 2. Uu tien tiep theo pha huy vat can tren UnderGrid (ngoai tru Spawner)
-        if (TryExplodeUnder(cx, cy)) return;
-
-        // 3. Neu khong co vat can tang tren/duoi thi pha huy va xoa item tren MidGrid
-        ExplodeMid(cx, cy);
-    }
-
-    // Pha huy vat can tang OverlayGrid tai o (cx, cy)
-    private bool TryExplodeOverlay(int cx, int cy)
-    {
-        if (board.OverlayGrid == null) return false;
-        GameObject overlayObj = board.OverlayGrid[cx, cy];
-        if (overlayObj == null) return false;
-
-        int itemId = overlayObj.TryGetComponent<IBoardItem>(out var it) ? (int)it.ItemId : (int)EnumItemBoard.Blank;
-
-        PlayExplodeParticle(overlayObj, fallbackToDefault: true);
-        RemoveOverlayItem(cx, cy);
-
-        if (itemId > 0)
-        {
-            goalTracker.RegisterDestroyed(itemId);
-            if (BoardItemUtils.IsObstacle(itemId))
-            {
-                GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
-            }
-        }
-        scoreManager.AddScore(1, isObstacle: true, isByBooster: true);
-
-        return true;
-    }
-
-    // Pha huy vat can tang UnderGrid tai o (cx, cy) neu khong phai Spawner
-    private bool TryExplodeUnder(int cx, int cy)
-    {
-        if (board.UnderGrid == null) return false;
-        GameObject underObj = board.UnderGrid[cx, cy];
-        if (underObj == null) return false;
-
-        if (underObj.TryGetComponent<IBoardItem>(out var underItem) && underItem.ItemId == EnumItemBoard.Spawn)
-        {
-            return false;
-        }
-
-        int itemId = underItem != null ? (int)underItem.ItemId : (int)EnumItemBoard.Blank;
-
-        PlayParticleDefault(underObj.transform.position);
-        RemoveUnderItem(cx, cy);
-
-        if (itemId > 0)
-        {
-            goalTracker.RegisterDestroyed(itemId);
-            if (BoardItemUtils.IsObstacle(itemId))
-            {
-                GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
-            }
-        }
-        scoreManager.AddScore(1, isObstacle: true, isByBooster: true);
-
-        return true;
-    }
-
-    // Pha huy item tang giua MidGrid tai o (cx, cy)
-    private void ExplodeMid(int cx, int cy)
-    {
-        if (board.MidGrid == null) return;
-        GameObject obj = board.MidGrid[cx, cy];
-        if (obj == null) return;
-
-        int itemId = obj.TryGetComponent<IBoardItem>(out var midItem) ? (int)midItem.ItemId : (int)EnumItemBoard.Blank;
-
-        PlayExplodeParticle(obj, fallbackToDefault: false);
-        RemoveItem(cx, cy);
-
-        if (itemId > 0) goalTracker.RegisterDestroyed(itemId);
-        scoreManager.AddScore(1, isObstacle: false, isByBooster: true);
-    }
-
-    // Phat particle theo loai ngoc hoac mau mac dinh
-    private void PlayExplodeParticle(GameObject obj, bool fallbackToDefault)
-    {
-        if (poolParticle == null || obj == null) return;
-
-        if (obj.TryGetComponent<IBoardItem>(out var item) && BoardItemUtils.IsValidNormalItem(item))
-        {
-            poolParticle.Play(obj.transform.position, item.ItemId);
-        }
-        else if (fallbackToDefault)
-        {
-            PlayParticleDefault(obj.transform.position);
-        }
-    }
-
-    private void PlayParticleDefault(Vector3 position)
-    {
-        if (poolParticle != null)
-        {
-            poolParticle.Play(position, 1);
-        }
+        ItemDestructionHandler.ExplodeByBooster(board, cx, cy);
     }
 
     // Xoa 1 item khoi MidGrid va cap nhat trang thai BoardCell ve Empty
@@ -332,7 +229,7 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
             GameObject obj = board.MidGrid[pos.x, pos.y];
             if (obj == null) continue;
 
-            if (obj.TryGetComponent<IBoardItem>(out var item) && BoardItemUtils.IsBoosterItem(item))
+            if (obj.TryGetComponent<IBoosterActivatable>(out _))
             {
                 visited.Add(pos);
                 chainBoosters.Add(pos);

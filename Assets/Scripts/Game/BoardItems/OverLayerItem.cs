@@ -1,21 +1,4 @@
-using UnityEngine;
-
-public class OverLayerItem : MonoBehaviour, IBoardItem
+// Lop dai dien cho cac item vat can tren tang Overlay Grid (ke thua ObstacleItem)
+public class OverLayerItem : ObstacleItem
 {
-    [SerializeField] private EnumItemBoard itemId;
-    public EnumItemBoard ItemId
-    {
-        get => itemId;
-        set => itemId = value;
-    }
-
-    public virtual void OnSpawn()
-    {
-        // Hook called when retrieved from pool
-    }
-
-    public virtual void OnDespawn()
-    {
-        // Hook called before returning to pool
-    }
 }

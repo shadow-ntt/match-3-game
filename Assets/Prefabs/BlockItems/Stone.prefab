@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 34531479718938127}
   - component: {fileID: 430818988470569171}
-  - component: {fileID: 8065831509938482150}
+  - component: {fileID: -2444671413122952341}
   m_Layer: 0
   m_Name: Stone
   m_TagString: Untagged
@@ -93,7 +93,7 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
   m_BlendShapeWeights: []
---- !u!114 &8065831509938482150
+--- !u!114 &-2444671413122952341
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -105,4 +105,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7eba0aa0f92ec641b1b4b67cb10a0c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::OverLayerItem
-  itemId: 200
+  itemId: 301
+  maxHp: 1

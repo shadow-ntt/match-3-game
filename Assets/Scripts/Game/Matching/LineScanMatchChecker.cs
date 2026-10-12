@@ -224,7 +224,7 @@ public class LineScanMatchChecker
         };
     }
 
-    // Kiem tra o co hop le de tham gia Match hay khong
+    // Kiem tra o co hop le de tham gia Match hay khong (qua interface IMatchable)
     private bool IsCellMatchable(Vector2Int pos, out int itemId)
     {
         itemId = -1;
@@ -233,11 +233,9 @@ public class LineScanMatchChecker
         GameObject cellObj = _board.MidGrid[pos.x, pos.y];
         if (cellObj == null) return false;
 
-        if (!cellObj.TryGetComponent<IBoardItem>(out var item)) return false;
-        if (!BoardItemUtils.IsValidNormalItem(item)) return false;
-        if (BoardItemUtils.IsBoosterItem(item)) return false;
+        if (!cellObj.TryGetComponent<IMatchable>(out var matchable) || !matchable.CanMatch) return false;
 
-        itemId = (int)item.ItemId;
+        itemId = (int)matchable.ColorId;
         return true;
     }
 }

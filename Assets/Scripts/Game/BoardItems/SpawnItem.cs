@@ -1,21 +1,4 @@
-using UnityEngine;
-
-public class SpawnItem : MonoBehaviour, IBoardItem
+// Lop dai dien cho diem sinh Spawner tren tang Under
+public class SpawnItem : BoardItemBase
 {
-    [SerializeField] private EnumItemBoard itemId;
-    public EnumItemBoard ItemId
-    {
-        get => itemId;
-        set => itemId = value;
-    }
-
-    public virtual void OnSpawn()
-    {
-        // Hook called when retrieved from pool
-    }
-
-    public virtual void OnDespawn()
-    {
-        // Hook called before returning to pool
-    }
 }

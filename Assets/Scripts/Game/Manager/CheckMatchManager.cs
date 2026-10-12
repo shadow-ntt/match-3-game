@@ -96,7 +96,11 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 }
 
                 // PHA 2: SINH NGỌC MỚI TỪ TRỜI RƠI XUỐNG ĐỂ LẤP ĐẦY BÀN CỜ
-                // Chỉ sinh từ trên trời khi toàn bộ ngọc hiện có đã rơi hết và không còn tạo match nào
+                // Chi sinh tu tren troi khi man choi chua ket thuc va khong con match nao tren ban co
+                if (!spawnItemFromSky.CanSpawn)
+                {
+                    break;
+                }
 
                 bool anySpawned = await spawnItemFromSky.SpawnFromSkyAsync();
 
@@ -186,144 +190,11 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
         // 3. Kiem tra va pha huy vat can tai tung toa do ria
         foreach (var pos in adjacentPositions)
         {
-            TryExplodeObstacleAt(pos.x, pos.y);
+            ItemDestructionHandler.ExplodeAdjacentObstacle(board, pos.x, pos.y);
         }
     }
 
-    // Kiem tra va pha huy vat can tai o (x, y) theo thu tu uu tien 4 layer
-    private bool TryExplodeObstacleAt(int x, int y)
-    {
-        if (!board.IsInBounds(x, y)) return false;
-
-        // 1. TANG OVERLAY: Uu tien hang dau pha huy vat can tren OverlayGrid (da, bang tuyet, xich...)
-        if (TryExplodeOverlay(x, y)) return true;
-
-        // 2. TANG MID: Pha huy vat can tren MidGrid neu la obstacle (vi du: hom go, da giua ban co)
-        if (TryExplodeMidObstacle(x, y)) return true;
-
-        // 3. TANG UNDER: Pha huy vat can tren UnderGrid (ngoai tru Spawner)
-        if (TryExplodeUnder(x, y)) return true;
-
-        return false;
-    }
-
-    // Pha huy vat can tang OverlayGrid tai o (x, y)
-    private bool TryExplodeOverlay(int x, int y)
-    {
-        if (board.OverlayGrid == null) return false;
-        GameObject overlayObj = board.OverlayGrid[x, y];
-        if (overlayObj == null) return false;
-
-        int itemId = overlayObj.TryGetComponent<IBoardItem>(out var it) ? (int)it.ItemId : (int)EnumItemBoard.Blank;
-
-        Vector3 worldPos = overlayObj.transform.position;
-        if (poolParticle != null)
-        {
-            poolParticle.Play(worldPos, EnumItemColor.Red);
-        }
-
-        board.RemoveOverlayItem(x, y);
-
-        if (itemId > 0)
-        {
-            if (goalTracker != null)
-            {
-                goalTracker.RegisterDestroyed(itemId);
-            }
-            if (BoardItemUtils.IsObstacle(itemId))
-            {
-                GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
-            }
-        }
-
-        if (scoreManager != null)
-        {
-            scoreManager.AddScore(1, isObstacle: true, isByBooster: false);
-        }
-
-        return true;
-    }
-
-    // Pha huy vat can tang MidGrid tai o (x, y) neu la obstacle
-    private bool TryExplodeMidObstacle(int x, int y)
-    {
-        if (board.MidGrid == null) return false;
-        GameObject midObj = board.MidGrid[x, y];
-        if (midObj == null) return false;
-
-        if (!BoardItemUtils.IsObstacle(midObj)) return false;
-
-        int itemId = midObj.TryGetComponent<IBoardItem>(out var it) ? (int)it.ItemId : (int)EnumItemBoard.Blank;
-
-        Vector3 worldPos = midObj.transform.position;
-        if (poolParticle != null)
-        {
-            poolParticle.Play(worldPos, EnumItemColor.Red);
-        }
-
-        board.RemoveMidItem(x, y);
-
-        if (itemId > 0)
-        {
-            if (goalTracker != null)
-            {
-                goalTracker.RegisterDestroyed(itemId);
-            }
-            GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
-        }
-
-        if (scoreManager != null)
-        {
-            scoreManager.AddScore(1, isObstacle: true, isByBooster: false);
-        }
-
-        return true;
-    }
-
-    // Pha huy vat can tang UnderGrid tai o (x, y) neu khong phai Spawner
-    private bool TryExplodeUnder(int x, int y)
-    {
-        if (board.UnderGrid == null) return false;
-        GameObject underObj = board.UnderGrid[x, y];
-        if (underObj == null) return false;
-
-        // Spawner khong the bi pha huy
-        if (underObj.TryGetComponent<IBoardItem>(out var underItem) && underItem.ItemId == EnumItemBoard.Spawn)
-        {
-            return false;
-        }
-
-        int itemId = underItem != null ? (int)underItem.ItemId : (int)EnumItemBoard.Blank;
-
-        Vector3 worldPos = underObj.transform.position;
-        if (poolParticle != null)
-        {
-            poolParticle.Play(worldPos, EnumItemColor.Red);
-        }
-
-        board.RemoveUnderItem(x, y);
-
-        if (itemId > 0)
-        {
-            if (goalTracker != null)
-            {
-                goalTracker.RegisterDestroyed(itemId);
-            }
-            if (BoardItemUtils.IsObstacle(itemId))
-            {
-                GameEventBus.RaiseObstacleDestroyed((EnumItemBoard)itemId);
-            }
-        }
-
-        if (scoreManager != null)
-        {
-            scoreManager.AddScore(1, isObstacle: true, isByBooster: false);
-        }
-
-        return true;
-    }
-
-    // Xu ly Normal Match: phat particle no cho cac gem va xoa khoi grid
+    // Xu ly Normal Match: phat hoat anh bien mat va particle qua IDestructible
     private void HandleNormalMatch(MatchData match, int cascadeStep)
     {
         int count = 0;
@@ -333,9 +204,15 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
             GameObject itemObj = board.MidGrid[pos.x, pos.y];
             if (itemObj == null) continue;
 
-            poolParticle.Play(itemObj.transform.position, (EnumItemBoard)match.matchID);
+            if (itemObj.TryGetComponent<IDestructible>(out var destructible))
+            {
+                PlayEffectAndReturn(destructible, itemObj, pooltem).Forget();
+            }
+            else
+            {
+                pooltem.ReturnBoardItem(itemObj);
+            }
 
-            pooltem.ReturnBoardItem(itemObj);
             board.MidGrid[pos.x, pos.y] = null;
 
             if (board.BoardCellGrid[pos.x, pos.y] != null &&
@@ -345,6 +222,9 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 cell.IsGettingFilled = false;
             }
             count++;
+
+            // Pha huy UnderLayerItem (neu co) duoi chan vien ngoc vua no
+            ItemDestructionHandler.DestroyUnderItem(board, pos.x, pos.y);
         }
 
         if (count > 0)
@@ -353,6 +233,12 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
             goalTracker.RegisterDestroyed(match.matchID, count);
             GameEventBus.RaiseMatchExploded(count, cascadeStep);
         }
+    }
+
+    private async UniTaskVoid PlayEffectAndReturn(IDestructible destructible, GameObject obj, Pooltem pooltem)
+    {
+        await destructible.PlayDestroyEffectAsync();
+        pooltem.ReturnBoardItem(obj);
     }
 
     // Xu ly Special Match (tao booster): phat particle no cho cac gem, xoa khoi grid va spawn booster tai centerCell
@@ -369,9 +255,15 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
             GameObject itemObj = board.MidGrid[pos.x, pos.y];
             if (itemObj == null) continue;
 
-            poolParticle.Play(itemObj.transform.position, (EnumItemBoard)match.matchID);
+            if (itemObj.TryGetComponent<IDestructible>(out var destructible))
+            {
+                PlayEffectAndReturn(destructible, itemObj, pooltem).Forget();
+            }
+            else
+            {
+                pooltem.ReturnBoardItem(itemObj);
+            }
 
-            pooltem.ReturnBoardItem(itemObj);
             board.MidGrid[pos.x, pos.y] = null;
 
             if (board.BoardCellGrid[pos.x, pos.y] != null &&
@@ -381,6 +273,9 @@ public class CheckMatchManager : Singleton<CheckMatchManager>
                 cell.IsGettingFilled = false;
             }
             count++;
+
+            // Pha huy UnderLayerItem (neu co) duoi chan vien ngoc vua no
+            ItemDestructionHandler.DestroyUnderItem(board, pos.x, pos.y);
         }
 
         if (count > 0)

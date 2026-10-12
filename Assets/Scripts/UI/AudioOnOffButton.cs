@@ -5,12 +5,6 @@ using UnityEngine.UI;
 // Nut dieu khien bat / tat am thanh (Turn On / Turn Off) cho BGM hoac SFX
 public class AudioOnOffButton : MonoBehaviour
 {
-    public enum AudioTargetType
-    {
-        BGM,
-        SFX
-    }
-
     [Header("Loai am thanh dieu khien")]
     [SerializeField] private AudioTargetType audioTarget;
 

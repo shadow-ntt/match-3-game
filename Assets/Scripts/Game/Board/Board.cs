@@ -174,7 +174,7 @@ public class Board : MonoBehaviour
             {
                 if (_boardCellGrid[x, y] != null && _boardCellGrid[x, y].TryGetComponent<BoardCell>(out var cellComp))
                 {
-                    cellComp.State = (_midGrid[x, y] != null || _underGrid[x, y] != null) ? EnumStateBoardCell.Occupied : EnumStateBoardCell.Empty;
+                    cellComp.State = (_midGrid[x, y] != null || (_overlayGrid != null && _overlayGrid[x, y] != null)) ? EnumStateBoardCell.Occupied : EnumStateBoardCell.Empty;
                 }
             }
         }
@@ -242,6 +242,49 @@ public class Board : MonoBehaviour
     // THAO TAC XOA ITEM TREN CAC TANG GRID
     // ==========================================
 
+    // Giai phong item tai toa do (x, y) khoi grid tuong ung va cap nhat State cua BoardCell
+    public GameObject ClearGridItem(int x, int y, EnumBoardLayer layer)
+    {
+        if (!IsInBounds(x, y)) return null;
+
+        GameObject obj = null;
+        switch (layer)
+        {
+            case EnumBoardLayer.Overlay:
+                if (_overlayGrid == null) return null;
+                obj = _overlayGrid[x, y];
+                _overlayGrid[x, y] = null;
+                break;
+
+            case EnumBoardLayer.Mid:
+                if (_midGrid == null) return null;
+                obj = _midGrid[x, y];
+                _midGrid[x, y] = null;
+                break;
+
+            case EnumBoardLayer.Under:
+                if (_underGrid == null) return null;
+                obj = _underGrid[x, y];
+                if (obj != null && obj.TryGetComponent<SpawnItem>(out _)) return null; // Bao ve Spawner
+                _underGrid[x, y] = null;
+                break;
+        }
+
+        if (obj == null) return null;
+
+        // Cap nhat lai BoardCell state ve Empty neu ca Mid va Overlay deu trong
+        bool isMidEmpty = _midGrid == null || _midGrid[x, y] == null;
+        bool isOverlayEmpty = _overlayGrid == null || _overlayGrid[x, y] == null;
+        if (isMidEmpty && isOverlayEmpty && _boardCellGrid != null && _boardCellGrid[x, y] != null &&
+            _boardCellGrid[x, y].TryGetComponent<BoardCell>(out var cell))
+        {
+            cell.State = EnumStateBoardCell.Empty;
+            cell.IsGettingFilled = false;
+        }
+
+        return obj;
+    }
+
     // Xoa 1 item tren MidGrid va tra ve Pooltem
     public void RemoveMidItem(int x, int y)
     {
@@ -286,7 +329,7 @@ public class Board : MonoBehaviour
         GameObject obj = _underGrid[x, y];
         if (obj == null) return;
 
-        if (obj.TryGetComponent<IBoardItem>(out var underItem) && underItem.ItemId == EnumItemBoard.Spawn)
+        if (obj.TryGetComponent<SpawnItem>(out _))
         {
             return;
         }
