@@ -56,7 +56,7 @@ public class GameFlowController : Singleton<GameFlowController>
         {
             if (!SaveManager.HasLevel(level))
             {
-                Debug.LogWarning($"[GameFlowController] Level {level} khong ton tai trong Assets/Data! Giu nguyen level hien tai: {levelToLoad}");
+                Debug.LogWarning($"[GameFlowController] Level {level} khong ton tai! Giu nguyen level hien tai: {levelToLoad}");
                 level = levelToLoad;
             }
 

@@ -9,14 +9,10 @@ public class LightBallItem : BoosterItem
 {
     private EnumItemBoard _targetColor = EnumItemBoard.Blank;
 
-    // Neu nguoi choi chu dong vuot LightBall (depth == 0) ma swapTarget khong hop le thi huy
-    public override bool CanActivate(int depth, IBoardItem swapTarget = null)
+    // Neu nguoi choi chu dong vuot LightBall ma swapTarget khong hop le (khong phai gem co mau) thi huy
+    public override bool CanActivate(IBoardItem swapTarget = null)
     {
-        if (depth == 0 && (swapTarget == null || !(swapTarget is IMatchable matchable && matchable.CanMatch)))
-        {
-            return false;
-        }
-        return true;
+        return swapTarget is IMatchable matchable && matchable.CanMatch;
     }
 
     // Phat animation phong to thu nho va xoay tron phat sang

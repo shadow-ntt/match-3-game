@@ -122,7 +122,7 @@ public class LightBallBoosterCombo : BoosterCombo
 
             if (obj.TryGetComponent<IBoosterActivatable>(out _))
             {
-                activationTasks.Add(manager.ActivateBoosterInternalAsync(pos.x, pos.y, null, visited, 1));
+                activationTasks.Add(manager.ActivateBoosterAsync(pos.x, pos.y, null, visited));
             }
         }
 

@@ -230,6 +230,9 @@ public class LineScanMatchChecker
         itemId = -1;
         if (_board == null || !_board.IsInBounds(pos)) return false;
 
+        // Neu o co tang tren la Overlayer thi khong duoc tham gia Match
+        if (_board.HasOverlay(pos)) return false;
+
         GameObject cellObj = _board.MidGrid[pos.x, pos.y];
         if (cellObj == null) return false;
 

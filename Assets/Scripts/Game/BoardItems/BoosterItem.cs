@@ -33,7 +33,7 @@ public class BoosterItem : BoardItemBase, ISwappable, IBoosterActivatable, IDest
         currentHp = 1;
     }
 
-    public virtual bool CanActivate(int depth, IBoardItem swapTarget = null)
+    public virtual bool CanActivate(IBoardItem swapTarget = null)
     {
         return true;
     }

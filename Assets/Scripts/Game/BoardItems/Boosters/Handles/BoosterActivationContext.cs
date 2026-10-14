@@ -18,7 +18,6 @@ public class BoosterActivationContext
     public List<Vector2Int> ChainBoosters { get; }
     public HashSet<Vector2Int> Visited { get; }
     public IBoardItem SwapTarget { get; }
-    public int Depth { get; }
 
     public BoosterActivationContext(
         Board board,
@@ -28,8 +27,7 @@ public class BoosterActivationContext
         List<Vector2Int> affectedCells,
         List<Vector2Int> chainBoosters,
         HashSet<Vector2Int> visited,
-        IBoardItem swapTarget = null,
-        int depth = 0)
+        IBoardItem swapTarget = null)
     {
         Board = board;
         Manager = manager;
@@ -39,6 +37,5 @@ public class BoosterActivationContext
         ChainBoosters = chainBoosters ?? new List<Vector2Int>();
         Visited = visited ?? new HashSet<Vector2Int>();
         SwapTarget = swapTarget;
-        Depth = depth;
     }
 }

@@ -17,7 +17,6 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
     private GoalTracker goalTracker;
     private ScoreManager scoreManager;
     private CameraShakeService cameraShakeService;
-    private Pooltem pooltem;
 
     public Board Board => board;
     public PoolBlockBreakEffect PoolParticle => poolParticle;
@@ -38,22 +37,31 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         goalTracker = GoalTracker.Instance;
         scoreManager = ScoreManager.Instance;
         cameraShakeService = CameraShakeService.Instance;
-        pooltem = Pooltem.Instance;
     }
 
-    // Kich hoat booster tai (x, y), ho tro kich hoat day chuyen (Chain Reaction)
+    // Kich hoat booster tai (x, y), ho tro kich hoat day chuyen (Chain Reaction) bang vong lap Queue
     // Tra ve true neu booster kich hoat thanh cong
-    public async UniTask<bool> ActivateBoosterAsync(int x, int y, IBoardItem swapTarget = null)
+    public async UniTask<bool> ActivateBoosterAsync(
+        int x,
+        int y,
+        IBoardItem swapTarget = null,
+        HashSet<Vector2Int> visited = null)
     {
-        var visited = new HashSet<Vector2Int>();
-        return await ActivateBoosterInternalAsync(x, y, swapTarget, visited, 0);
+        visited ??= new HashSet<Vector2Int>();
+        var pos = new Vector2Int(x, y);
+        visited.Add(pos);
+
+        var queue = new Queue<Vector2Int>();
+        queue.Enqueue(pos);
+
+        return await ProcessBoosterQueueAsync(queue, visited, swapTarget);
     }
 
     // Kich hoat hieu ung combo giua 2 booster tai (xA, yA) va (xB, yB), ho tro day chuyen
     public async UniTask<bool> ActivateBoosterComboAsync(int xA, int yA, IBoardItem boosterA, int xB, int yB, IBoardItem boosterB)
     {
-        if (board.MidGrid == null) return false;
-        if (boosterA == null || boosterB == null) return false;
+        var combo = _combos.GetCombo(boosterA.ItemId, boosterB.ItemId);
+        if (combo == null) return false;
 
         var visited = new HashSet<Vector2Int>
         {
@@ -64,13 +72,6 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         // Tam combo lay tai vi tri vuot den (xB, yB)
         int cx = xB;
         int cy = yB;
-
-        // Tim Combo tu BoosterCombos
-        var combo = _combos != null
-            ? _combos.GetCombo(boosterA.ItemId, boosterB.ItemId)
-            : null;
-
-        if (combo == null) return false;
 
         GameEventBus.RaiseBoosterComboActivated(boosterA.ItemId, boosterB.ItemId);
 
@@ -103,8 +104,9 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         RemoveItem(xA, yA);
         RemoveItem(xB, yB);
 
-        // Gom cac booster khac nam trong vung no de kich hoat day chuyen
-        var chainBoosters = CollectChainBoosters(affectedCells, visited);
+        // Gom cac booster khac nam trong vung no de kich hoat day chuyen vao hang doi
+        var chainQueue = new Queue<Vector2Int>();
+        var chainBoosters = CollectAndEnqueueChainBoosters(affectedCells, visited, chainQueue);
 
         // Dong goi ngu canh va thuc thi hieu ung combo
         var context = new BoosterComboContext(
@@ -120,42 +122,56 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
 
         await combo.ExecuteEffectAsync(context);
 
-        // Kich hoat day chuyen cac booster con lai
-        await ActivateChainBoostersAsync(chainBoosters, visited, 1);
+        // Kich hoat day chuyen cac booster con lai bang vong lap Queue
+        await ProcessBoosterQueueAsync(chainQueue, visited);
 
         return true;
     }
 
-    // Kich hoat day chuyen tu ben ngoai
-    public async UniTask TriggerChainBoostersAsync(List<Vector2Int> cells)
-    {
-        var visited = new HashSet<Vector2Int>();
-        var chainBoosters = CollectChainBoosters(cells, visited);
-        await ActivateChainBoostersAsync(chainBoosters, visited, 1);
-    }
-
-    // Ham noi bo thuc hien kich hoat booster don le va xu ly day chuyen de quy
-    public async UniTask<bool> ActivateBoosterInternalAsync(
-        int x, int y,
-        IBoardItem swapTarget,
+    // Xu ly toan bo hang doi booster va chain reaction bang vong lap while
+    private async UniTask<bool> ProcessBoosterQueueAsync(
+        Queue<Vector2Int> queue,
         HashSet<Vector2Int> visited,
-        int depth)
+        IBoardItem initialSwapTarget = null)
     {
-        if (depth > 15) return false;
-        if (board.MidGrid == null || !board.IsInBounds(x, y)) return false;
+        bool anyActivated = false;
+        IBoardItem currentSwapTarget = initialSwapTarget;
 
-        GameObject boosterObj = board.MidGrid[x, y];
-        if (boosterObj == null) return false;
-        if (!boosterObj.TryGetComponent<IBoosterActivatable>(out var booster)) return false;
-
-        // Kiem tra dieu kien kich hoat cua chinh booster (vi du: LightBall can swapTarget hop le o depth 0)
-        if (!booster.CanActivate(depth, swapTarget))
+        while (queue.Count > 0)
         {
-            return false;
+            Vector2Int pos = queue.Dequeue();
+
+            bool activated = await ActivateSingleBoosterAsync(
+                pos.x,
+                pos.y,
+                currentSwapTarget,
+                visited,
+                queue
+            );
+
+            if (activated)
+            {
+                anyActivated = true;
+            }
+
+            // swapTarget chi danh rieng cho booster ban dau duoc nguoi choi swap
+            currentSwapTarget = null;
         }
 
-        Vector2Int currentPos = new Vector2Int(x, y);
-        visited.Add(currentPos);
+        return anyActivated;
+    }
+
+    // Ham noi bo thuc hien kich hoat mot booster don le
+    private async UniTask<bool> ActivateSingleBoosterAsync(
+        int x,
+        int y,
+        IBoardItem swapTarget,
+        HashSet<Vector2Int> visited,
+        Queue<Vector2Int> chainQueue)
+    {
+        GameObject boosterObj = board.MidGrid[x, y];
+        if (boosterObj == null || !boosterObj.TryGetComponent<IBoosterActivatable>(out var booster))
+            return false;
 
         // Lay danh sach cac o bi anh huong
         var affectedCells = booster.GetAffectedCells(board, x, y, swapTarget);
@@ -164,8 +180,7 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         await booster.PlayActivationAnimationAsync();
 
         // Ghi nhan booster bi pha huy truoc khi xoa khoi ban co
-        var bItem = booster as IBoardItem;
-        if (bItem != null)
+        if (booster is IBoardItem bItem)
         {
             goalTracker.RegisterDestroyed((int)bItem.ItemId);
             GameEventBus.RaiseBoosterActivated(bItem.ItemId);
@@ -176,16 +191,13 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         // Xoa ban than booster khoi ban co
         RemoveItem(x, y);
 
-        // Gom cac booster khac nam trong vung no de kich hoat day chuyen
-        var chainBoosters = CollectChainBoosters(affectedCells, visited);
+        // Gom cac booster khac nam trong vung no de kich hoat day chuyen va day vao hang doi
+        var chainBoosters = CollectAndEnqueueChainBoosters(affectedCells, visited, chainQueue);
 
         // Phat animation projectile / blast va pha huy cac o qua da hinh (Polymorphism)
         var context = new BoosterActivationContext(
-            board, this, x, y, affectedCells, chainBoosters, visited, swapTarget, depth);
+            board, this, x, y, affectedCells, chainBoosters, visited, swapTarget);
         await booster.ExecuteActivationEffectAsync(context);
-
-        // Kich hoat day chuyen cac booster con lai
-        await ActivateChainBoostersAsync(chainBoosters, visited, depth + 1);
 
         return true;
     }
@@ -199,12 +211,6 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
     // Xoa 1 item khoi MidGrid va cap nhat trang thai BoardCell ve Empty
     private void RemoveItem(int x, int y) => board.RemoveMidItem(x, y);
 
-    // Xoa 1 item khoi OverlayGrid va cap nhat trang thai BoardCell neu can
-    private void RemoveOverlayItem(int x, int y) => board.RemoveOverlayItem(x, y);
-
-    // Xoa 1 item khoi UnderGrid neu khong phai Spawner
-    private void RemoveUnderItem(int x, int y) => board.RemoveUnderItem(x, y);
-
     // Cho vu no hoan tat theo thoi gian delay cau hinh
     public UniTask DelayExplosionAsync(float multiplier = 1f)
     {
@@ -214,8 +220,11 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
             : UniTask.CompletedTask;
     }
 
-    // Gom cac booster chua tham gia no trong vung anh huong de kich hoat day chuyen
-    private List<Vector2Int> CollectChainBoosters(List<Vector2Int> affectedCells, HashSet<Vector2Int> visited)
+    // Gom cac booster chua tham gia no trong vung anh huong va day vao hang doi chain
+    private List<Vector2Int> CollectAndEnqueueChainBoosters(
+        List<Vector2Int> affectedCells,
+        HashSet<Vector2Int> visited,
+        Queue<Vector2Int> queue)
     {
         var chainBoosters = new List<Vector2Int>();
         if (affectedCells == null || board.MidGrid == null) return chainBoosters;
@@ -223,30 +232,16 @@ public class BoosterActivationManager : Singleton<BoosterActivationManager>
         for (int i = 0; i < affectedCells.Count; i++)
         {
             Vector2Int pos = affectedCells[i];
-            if (!board.IsInBounds(pos.x, pos.y)) continue;
-            if (visited.Contains(pos)) continue;
+            if (!board.IsInBounds(pos.x, pos.y) || visited.Contains(pos)) continue;
 
             GameObject obj = board.MidGrid[pos.x, pos.y];
-            if (obj == null) continue;
-
-            if (obj.TryGetComponent<IBoosterActivatable>(out _))
+            if (obj != null && obj.TryGetComponent<IBoosterActivatable>(out _))
             {
                 visited.Add(pos);
                 chainBoosters.Add(pos);
+                queue.Enqueue(pos);
             }
         }
         return chainBoosters;
-    }
-
-    // Kich hoat day chuyen danh sach cac booster da thu thap duoc
-    private async UniTask ActivateChainBoostersAsync(List<Vector2Int> chainBoosters, HashSet<Vector2Int> visited, int nextDepth)
-    {
-        if (chainBoosters == null || chainBoosters.Count == 0) return;
-
-        for (int i = 0; i < chainBoosters.Count; i++)
-        {
-            Vector2Int cPos = chainBoosters[i];
-            await ActivateBoosterInternalAsync(cPos.x, cPos.y, null, visited, nextDepth);
-        }
     }
 }

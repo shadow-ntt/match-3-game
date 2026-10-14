@@ -66,6 +66,17 @@ public class Board : MonoBehaviour
         return IsInBounds(pos.x, pos.y);
     }
 
+    // Kiem tra toa do (x, y) co vat can/item o tang Overlay (OverlayGrid) che phu khong
+    public bool HasOverlay(int x, int y)
+    {
+        return IsInBounds(x, y) && _overlayGrid != null && _overlayGrid[x, y] != null;
+    }
+
+    public bool HasOverlay(Vector2Int pos)
+    {
+        return HasOverlay(pos.x, pos.y);
+    }
+
     private Pooltem pooltem;
 
     private void Awake()

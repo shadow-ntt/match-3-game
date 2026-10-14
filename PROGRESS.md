@@ -506,3 +506,14 @@
   - Quy hoạch các enum dùng chung vào `Assets/Scripts/Enum/`: `AudioTargetType.cs`, `EnumBoardLayer.cs`, `ExitAction.cs`, `ExpandDirection.cs`.
 - **Kiểm soát Spawn Khi Kết thúc Màn chơi (`SpawnItemFromSky.cs`)**:
   - Lắng nghe `OnLevelComplete` và `OnLevelFailed` để chặn sinh ngọc mới rơi xuống khi màn chơi đã kết thúc (`_canSpawn = false`), reset lại khi bắt đầu màn mới.
+
+### 2.28. Xử lý Ràng Buộc Tầng Phủ (Overlayer Constraint) cho Swap & MatchCheck
+- **Chuẩn hóa truy vấn Overlayer (`Board.cs` & `BoardItemUtils.cs`)**:
+  - Bổ sung `HasOverlay(int x, int y)` và `HasOverlay(Vector2Int pos)` làm Single Source of Truth kiểm tra tầng `OverlayGrid`.
+  - Bổ sung extension method `CanSwap(this Board, int xA, int yA, int xB, int yB)` kiểm tra tính khả thi hoán đổi toàn diện.
+- **Cách ly viên ngọc dưới Overlayer khỏi MatchCheck (`LineScanMatchChecker.cs`)**:
+  - Cập nhật hàm cổng `IsCellMatchable`: Bỏ qua các ô đang có vật cản tầng Overlayer che phủ (`_board.HasOverlay(pos)`).
+  - Ngăn chặn hoàn toàn hiện tượng ngọc dưới Overlayer tự nổ, ngắt chuỗi liên kết các viên cùng màu cạnh ô Overlayer.
+- **Chặn thao tác Input & Swap khi dính Overlayer (`HandleInput.cs`)**:
+  - `OnPointerDown`: Hủy thao tác kéo ngay lập tức nếu người chơi nhấn vào ô có Overlayer.
+  - `HandleSwipe`: Trả về `false`, không thực hiện bất kỳ hành động nào (không swap, không tốn lượt, không chạy animation) nếu ô nguồn A hoặc ô đích B có tầng trên là Overlayer.

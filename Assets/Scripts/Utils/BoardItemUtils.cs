@@ -146,6 +146,17 @@ namespace Utils
             return false;
         }
 
+        // Kiểm tra tọa độ (x, y) có item tầng Overlay che phủ không
+        public static bool HasOverlay(this Board board, int x, int y)
+        {
+            return board != null && board.IsInBounds(x, y) && board.OverlayGrid != null && board.OverlayGrid[x, y] != null;
+        }
+
+        public static bool HasOverlay(this Board board, Vector2Int pos)
+        {
+            return board.HasOverlay(pos.x, pos.y);
+        }
+
         // Kiem tra item co du dieu kien hoan doi (qua interface ISwappable)
         public static bool CanSwap(IBoardItem item)
         {
@@ -163,6 +174,22 @@ namespace Utils
         public static bool CanSwap(int id)
         {
             return !IsBlank(id) && IsMidLayer(id);
+        }
+
+        // Kiem tra 2 o (xA, yA) va (xB, yB) tren ban co co du dieu kien hoan doi khong (bao gom kiem tra Overlayer)
+        public static bool CanSwap(this Board board, int xA, int yA, int xB, int yB)
+        {
+            if (board == null || !board.IsInBounds(xA, yA) || !board.IsInBounds(xB, yB)) return false;
+            if (board.HasOverlay(xA, yA) || board.HasOverlay(xB, yB)) return false;
+            if (board.MidGrid == null) return false;
+
+            GameObject objA = board.MidGrid[xA, yA];
+            GameObject objB = board.MidGrid[xB, yB];
+            if (objA == null || objB == null) return false;
+
+            IBoardItem itemA = objA.GetComponent<IBoardItem>();
+            IBoardItem itemB = objB.GetComponent<IBoardItem>();
+            return CanSwap(itemA, itemB);
         }
 
         // ==========================================

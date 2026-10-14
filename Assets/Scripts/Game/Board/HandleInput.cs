@@ -89,6 +89,14 @@ public class HandleInput : MonoBehaviour
 
         if (_selectedItem != null && BoardItemUtils.CanSwap(_selectedItem))
         {
+            // Neu o duoc click dang co tang tren la Overlayer thi khong cho phep keo / tuong tac
+            if (TryGetItemCoordinates(_selectedItem, out int x, out int y) && board.HasOverlay(x, y))
+            {
+                _selectedItem = null;
+                _isDragging = false;
+                return;
+            }
+
             _isDragging = true;
         }
         else
@@ -133,6 +141,12 @@ public class HandleInput : MonoBehaviour
         int yB = yA + offset.y;
 
         if (!board.IsInBounds(xB, yB))
+        {
+            return false;
+        }
+
+        // Neu 1 trong 2 o (o nguon A hoac o dich B) co tang tren la Overlayer thi khong co hanh dong gi
+        if (board.HasOverlay(xA, yA) || board.HasOverlay(xB, yB))
         {
             return false;
         }

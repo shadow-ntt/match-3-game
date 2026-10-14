@@ -1,18 +1,43 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Utils;
 
+[Serializable]
+public class ShatteredItemData
+{
+    [Tooltip("Loai item tren ban co (Red = 102, Blue = 103, Green = 104, Yellow = 105, ...)")]
+    public EnumItemBoard itemId;
+
+    [Tooltip("Cac sprite manh vo cua item nay")]
+    public Sprite[] sprites;
+}
+
 public class PoolBlockBreakEffect : Singleton<PoolBlockBreakEffect>
 {
-    // Danh sach 7 ParticleSystem prefab tuong ung 7 mau trong EnumItemColor
-    [Header("7 Particle Prefabs (0: Red, 1: Blue, 2: Green, 3: Yellow, 4: Purple, 5: Orange, 6: Pink)")]
-    [SerializeField] private ParticleSystem[] particlePrefabs = new ParticleSystem[7];
+    [Header("Cau hinh Manh Vo Cho Tung Item")]
+    [SerializeField] private ShatteredItemData[] itemDataList;
 
-    [SerializeField] private int poolSize = 15;
+    [Header("Prefab & Pool")]
+    [Tooltip("Prefab ShatteredPiece (neu de trong, script se tu dong khoi tao runtime)")]
+    [SerializeField] private ShatteredPiece piecePrefab;
+    [SerializeField] private int initialPoolSize = 30;
 
-    // Hang doi luu tru ParticleSystem theo tung mau
-    private readonly Dictionary<EnumItemColor, Queue<ParticleSystem>> pools = new Dictionary<EnumItemColor, Queue<ParticleSystem>>();
+    [Header("Cau hinh Animation")]
+    [Tooltip("Khoang cach / toc do vang manh")]
+    [SerializeField] private float explosionSpeed = 1.1f;
+    [Tooltip("Thoi gian manh vo ton tai truoc khi bien mat")]
+    [SerializeField] private float duration = 0.45f;
+    [Tooltip("Kich thuoc manh vo")]
+    [SerializeField] private float pieceScale = 1.0f;
+    [Tooltip("Sorting Order de manh vo hien thi tren cac o ban co")]
+    [SerializeField] private int sortingOrder = 25;
+
+    // Cache tra cuu nhanh sprite theo EnumItemBoard
+    private readonly Dictionary<EnumItemBoard, Sprite[]> _itemSpriteMap = new Dictionary<EnumItemBoard, Sprite[]>();
+
+    // Hang doi pool cac manh vo dung chung
+    private readonly Queue<ShatteredPiece> _pool = new Queue<ShatteredPiece>();
 
     protected override void Awake()
     {
@@ -22,53 +47,113 @@ public class PoolBlockBreakEffect : Singleton<PoolBlockBreakEffect>
         Init();
     }
 
-    // Tao san poolSize luong particle cho moi mau duoc gan prefab
     private void Init()
     {
-        for (int c = 1; c <= 7; c++)
+        _itemSpriteMap.Clear();
+        if (itemDataList != null)
         {
-            EnumItemColor color = (EnumItemColor)c;
-            ParticleSystem prefab = GetPrefab(color);
-            if (prefab == null) continue;
-
-            if (!pools.TryGetValue(color, out var queue))
+            foreach (var data in itemDataList)
             {
-                queue = new Queue<ParticleSystem>();
-                pools[color] = queue;
+                if (data != null && data.sprites != null && data.sprites.Length > 0)
+                {
+                    _itemSpriteMap[data.itemId] = data.sprites;
+                }
             }
+        }
 
-            for (int i = 0; i < poolSize; i++)
-            {
-                ParticleSystem ps = Instantiate(prefab, transform);
-                ps.gameObject.SetActive(false);
-                queue.Enqueue(ps);
-            }
+        for (int i = 0; i < initialPoolSize; i++)
+        {
+            _pool.Enqueue(InstantiatePiece());
         }
     }
 
-    // Lay dung prefab theo EnumItemColor, neu mau chua gan thi fallback ve prefab dau tien hop le
-    private ParticleSystem GetPrefab(EnumItemColor color)
+    private ShatteredPiece InstantiatePiece()
     {
-        int index = (int)color - 1;
-        if (particlePrefabs != null && index >= 0 && index < particlePrefabs.Length && particlePrefabs[index] != null)
+        ShatteredPiece piece;
+        if (piecePrefab != null)
         {
-            return particlePrefabs[index];
+            piece = Instantiate(piecePrefab, transform);
+        }
+        else
+        {
+            GameObject go = new GameObject("ShatteredPiece_Runtime");
+            go.transform.SetParent(transform);
+            go.AddComponent<SpriteRenderer>();
+            piece = go.AddComponent<ShatteredPiece>();
         }
 
-        // Fallback ve prefab dau tien co san
-        if (particlePrefabs != null)
-        {
-            for (int i = 0; i < particlePrefabs.Length; i++)
-            {
-                if (particlePrefabs[i] != null) return particlePrefabs[i];
-            }
-        }
-
-        return null;
+        piece.gameObject.SetActive(false);
+        return piece;
     }
 
-    // Phat hieu ung theo Transform goc va EnumItemColor
-    public void Play(Transform origin, EnumItemColor color = EnumItemColor.Red)
+    private ShatteredPiece GetPiece()
+    {
+        while (_pool.Count > 0)
+        {
+            ShatteredPiece piece = _pool.Dequeue();
+            if (piece != null) return piece;
+        }
+
+        return InstantiatePiece();
+    }
+
+    private void ReturnPieceToPool(ShatteredPiece piece)
+    {
+        if (piece != null)
+        {
+            _pool.Enqueue(piece);
+        }
+    }
+
+    // Phat hieu ung theo Transform goc va EnumItemBoard
+    public void Play(Transform origin, EnumItemBoard itemId)
+    {
+        if (origin != null)
+        {
+            Play(origin.position, itemId);
+        }
+    }
+
+    // Phat hieu ung theo toa do Vector3 va EnumItemBoard
+    public void Play(Vector3 position, EnumItemBoard itemId)
+    {
+        // Truong hop fallback hoac item chua co sprite cau hinh: khong lam gi ca (silent no-op)
+        if (!_itemSpriteMap.TryGetValue(itemId, out var sprites) || sprites == null || sprites.Length == 0)
+        {
+            return;
+        }
+
+        int count = sprites.Length;
+        float baseAngleStep = 360f / count;
+
+        for (int i = 0; i < count; i++)
+        {
+            Sprite sprite = sprites[i];
+            if (sprite == null) continue;
+
+            ShatteredPiece piece = GetPiece();
+            if (piece == null) continue;
+
+            // Tinh huong bay phan bo deu 360 do voi do lech ngau nhien
+            float angle = (i * baseAngleStep) + UnityEngine.Random.Range(-baseAngleStep * 0.35f, baseAngleStep * 0.35f);
+            float rad = angle * Mathf.Deg2Rad;
+            Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+
+            float speed = explosionSpeed * UnityEngine.Random.Range(0.85f, 1.25f);
+
+            piece.SetSorting(sortingOrder);
+            piece.Play(position, sprite, dir, speed, duration, pieceScale, ReturnPieceToPool);
+        }
+    }
+
+    // Overload ho tro EnumItemColor neu co noi goi den
+    public void Play(Vector3 position, EnumItemColor color)
+    {
+        EnumItemBoard itemId = (EnumItemBoard)((int)color + 101);
+        Play(position, itemId);
+    }
+
+    public void Play(Transform origin, EnumItemColor color)
     {
         if (origin != null)
         {
@@ -76,94 +161,17 @@ public class PoolBlockBreakEffect : Singleton<PoolBlockBreakEffect>
         }
     }
 
-    // Phat hieu ung theo toa do Vector3 va EnumItemColor
-    public void Play(Vector3 position, EnumItemColor color = EnumItemColor.Red)
+    // Overload ho tro int id
+    public void Play(Vector3 position, int id)
     {
-        // Kiem tra xem co pool chua, neu chua thi tao pool
-        if (!pools.TryGetValue(color, out var queue))
-        {
-            queue = new Queue<ParticleSystem>();
-            pools[color] = queue;
-        }
-
-        ParticleSystem ps = null;
-        while (queue.Count > 0)
-        {
-            ps = queue.Dequeue();
-            if (ps != null) break;
-        }
-
-        if (ps == null)
-        {
-            ParticleSystem prefab = GetPrefab(color);
-            if (prefab == null)
-            {
-                Debug.LogWarning($"[PoolBlockBreakEffect] Khong tim thay particle prefab cho mau {color}!");
-                return;
-            }
-            ps = Instantiate(prefab, transform);
-        }
-
-        ps.transform.position = position;
-        ps.gameObject.SetActive(true);
-        ps.Play();
-
-        // Tinh thoi gian ton tai cua hat de thu hoi ve dung pool cua mau do
-        float duration = ps.main.duration + ps.main.startLifetime.constantMax;
-        StartCoroutine(OnFinishEffect(ps, color, duration));
+        Play(position, (EnumItemBoard)id);
     }
 
-    // Phat hieu ung theo EnumItemBoard
-    public void Play(Transform origin, EnumItemBoard boardItem)
+    public void Play(Transform origin, int id)
     {
         if (origin != null)
         {
-            Play(origin.position, boardItem);
+            Play(origin.position, (EnumItemBoard)id);
         }
     }
-
-    public void Play(Vector3 position, EnumItemBoard boardItem)
-    {
-        int id = (int)boardItem;
-        if (id >= 102 && id <= 108)
-        {
-            Play(position, (EnumItemColor)(id - 101));
-        }
-        else if (id >= 1 && id <= 7)
-        {
-            Play(position, (EnumItemColor)id);
-        }
-    }
-
-    // Overload phat hieu ung bang index mau dang so nguyen (int)
-    public void Play(Transform origin, int colorIndex)
-    {
-        EnumItemColor color = (EnumItemColor)Mathf.Clamp(colorIndex, 1, 7);
-        Play(origin, color);
-    }
-
-    // Overload phat hieu ung bang toa do Vector3 va int color
-    public void Play(Vector3 position, int colorIndex)
-    {
-        EnumItemColor color = (EnumItemColor)Mathf.Clamp(colorIndex, 1, 7);
-        Play(position, color);
-    }
-
-    // Cho hieu ung chay xong roi thu hoi ve hang doi cua dung mau
-    private IEnumerator OnFinishEffect(ParticleSystem ps, EnumItemColor color, float duration)
-    {
-        yield return new WaitForSeconds(duration);
-        if (ps != null)
-        {
-            ps.gameObject.SetActive(false);
-            if (!pools.TryGetValue(color, out var queue))
-            {
-                queue = new Queue<ParticleSystem>();
-                pools[color] = queue;
-            }
-            queue.Enqueue(ps);
-        }
-    }
-
-
 }

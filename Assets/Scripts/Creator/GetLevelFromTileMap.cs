@@ -98,7 +98,7 @@ public class GetLevelFromTileMap : MonoBehaviour
         );
     }
 
-    // Trich xuat va luu LevelData truc tiep vao Assets/Data bang Odin
+    // Trich xuat va luu LevelData vao Assets/Resources/Levels bang Odin
     [ContextMenu("Trích xuất & Lưu Level")]
     public void ExtractAndSaveLevel()
     {
@@ -113,17 +113,18 @@ public class GetLevelFromTileMap : MonoBehaviour
 
         LevelData levelData = BuildLevelData(out BoundsInt bounds);
 
-        string dataDir = Path.Combine(Application.dataPath, "Data");
-        if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
-
-        string filePath = Path.Combine(dataDir, $"level_{levelNumber}.json");
-        byte[] bytes = SerializationUtility.SerializeValue(levelData, DataFormat.JSON);
-        File.WriteAllBytes(filePath, bytes);
+        bool success = SaveManager.SaveLevel(levelNumber, levelData);
 
 #if UNITY_EDITOR
-        UnityEditor.AssetDatabase.Refresh();
-        Debug.Log($"[GetLevelFromTileMap] Đã lưu Level {levelNumber} thành công vào {filePath} ({bounds.size.y} hàng x {bounds.size.x} cột)");
-        UnityEditor.EditorUtility.DisplayDialog("Thành công", $"Đã trích xuất & lưu Level {levelNumber} thành công!\nKích thước: {bounds.size.y} hàng x {bounds.size.x} cột\nFile: Assets/Data/level_{levelNumber}.json", "OK");
+        if (success)
+        {
+            Debug.Log($"[GetLevelFromTileMap] Đã lưu Level {levelNumber} thành công ({bounds.size.y} hàng x {bounds.size.x} cột)");
+            UnityEditor.EditorUtility.DisplayDialog("Thành công", $"Đã trích xuất & lưu Level {levelNumber} thành công!\nKích thước: {bounds.size.y} hàng x {bounds.size.x} cột\nFile: Assets/Resources/Levels/level_{levelNumber}.json", "OK");
+        }
+        else
+        {
+            UnityEditor.EditorUtility.DisplayDialog("Thất bại", $"Không thể lưu Level {levelNumber}!", "OK");
+        }
 #endif
     }
 
