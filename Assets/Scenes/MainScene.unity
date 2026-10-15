@@ -535,6 +535,12 @@ MonoBehaviour:
     - {fileID: 21300000, guid: 2d8cef127a806e04fbe812145d98486d, type: 3}
     - {fileID: 21300000, guid: 2d8cef127a806e04fbe812145d98486d, type: 3}
     - {fileID: 21300000, guid: 2d8cef127a806e04fbe812145d98486d, type: 3}
+  - itemId: 301
+    sprites:
+    - {fileID: 8753167712785610673, guid: f1f1de478c0a400469883d09463528f5, type: 3}
+    - {fileID: -1005597026832467400, guid: 8e43d3ccb3b597849a695265ba73b633, type: 3}
+    - {fileID: -4908293012881231000, guid: 8203555544affd04c9138eb2772856a8, type: 3}
+    - {fileID: 2923660649718913945, guid: 74286782cb1ccbb429b8c5d6ed009daf, type: 3}
   piecePrefab: {fileID: 5012489201948271003, guid: b91f038ca4094a9ea29f52802ab7cd99, type: 3}
   initialPoolSize: 30
   explosionSpeed: 1.1
