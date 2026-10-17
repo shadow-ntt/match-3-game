@@ -138,10 +138,7 @@ public class LevelResultPopup : MonoBehaviour
         if (nextLevelButton != null)
         {
             nextLevelButton.interactable = false;
-            nextLevelButton.transform.DOKill();
-            nextLevelButton.transform.localScale = Vector3.one;
-            nextLevelButton.transform.DOPunchScale(Vector3.one * 0.1f, 0.15f, 10, 1f)
-                .OnComplete(ReloadScene);
+            ReloadScene();
         }
         else
         {
@@ -156,10 +153,7 @@ public class LevelResultPopup : MonoBehaviour
         if (retryButton != null)
         {
             retryButton.interactable = false;
-            retryButton.transform.DOKill();
-            retryButton.transform.localScale = Vector3.one;
-            retryButton.transform.DOPunchScale(Vector3.one * 0.1f, 0.15f, 10, 1f)
-                .OnComplete(ReloadScene);
+            ReloadScene();
         }
         else
         {

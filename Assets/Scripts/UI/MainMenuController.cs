@@ -37,8 +37,7 @@ public class MainMenuController : MonoBehaviour
         GameEventBus.RaiseUIButtonClicked();
         playButton.interactable = false;
 
-        playButton.transform.DOPunchScale(Vector3.one * 0.1f, 0.2f, 10, 1f)
-            .OnComplete(LoadGameplayScene);
+        LoadGameplayScene();
     }
 
     // Don dep event bus va load scene gameplay
